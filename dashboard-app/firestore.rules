@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Helper to get the role of the requesting user from their Firestore profile
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // Check if user is Admin or Super-Admin
+    function isAdmin() {
+      return isSignedIn() && (getRole() == 'admin' || getRole() == 'super-admin');
+    }
+    
+    // Check if user is specifically Super-Admin
+    function isSuperAdmin() {
+      return isSignedIn() && getRole() == 'super-admin';
+    }
+
+    match /users/{userId} {
+      // Anyone authenticated can read user profiles (for now, to see managers list etc)
+      allow read: if isSignedIn();
+
+      // 1. Initial Self-Registration (Auto-provisioning)
+      // Users can create their own profile ONLY if:
+      // - They set role to 'manager' (default)
+      // - OR they are in the hardcoded whitelist for specific roles (match AuthContext logic)
+      allow create: if request.auth.uid == userId && (
+        request.resource.data.role == 'manager' || 
+        (request.resource.data.role == 'super-admin' && request.auth.token.email == 'scorcioner@gmail.com') ||
+        (request.resource.data.role == 'admin' && request.auth.token.email == 'vegapro.mcc@gmail.com') ||
+        (request.resource.data.role == 'manager' && request.auth.token.email == 'koledova49@gmail.com')
+      );
+      
+      // 2. Admin creating placeholder users (invited_...)
+      // Admins can create placeholder users for invitation
+      allow create: if isAdmin() && userId.matches('invited_.*');
+
+      // 3. Updates
+      // - Users can update their own profile (e.g. name), BUT cannot change their role
+      // - Admins can update other users, BUT cannot modify a Super-Admin unless they are Super-Admin
+      allow update: if 
+        (request.auth.uid == userId && request.resource.data.role == resource.data.role) ||
+        (isAdmin() && (resource.data.role != 'super-admin' || isSuperAdmin()));
+
+      // 4. Delete
+      // - Admins can delete users, BUT cannot delete a Super-Admin
+      allow delete: if isAdmin() && (resource.data.role != 'super-admin');
+    }
+  }
+}

@@ -1,7 +1,13 @@
 // API Service Layer for BizGift Dashboard
 
 import type {
-    Deal, KpiActivity, Manager, ApiResponse, SyncStatus, DealsParams, KpiParams,
+    Deal,
+    KpiActivity,
+    Manager,
+    ApiResponse,
+    SyncStatus,
+    DealsParams,
+    KpiParams,
 } from '../types/api';
 
 class BizGiftAPI {
@@ -11,52 +17,105 @@ class BizGiftAPI {
     constructor() {
         this.apiUrl = import.meta.env.VITE_API_URL || '';
         this.apiKey = import.meta.env.VITE_API_KEY || '';
+
+        if (!this.apiUrl || !this.apiKey) {
+            console.warn(
+                'API credentials not configured. Set VITE_API_URL and VITE_API_KEY in .env file'
+            );
+        }
     }
 
-    private async fetch<T>(action: string, params: Record<string, any> = {}): Promise<T> {
-        const url = new URL(this.apiUrl);
-        url.searchParams.append('action', action);
-        url.searchParams.append('apiKey', this.apiKey);
+    /**
+     * Generic fetch method with error handling
+     */
+    private async fetch<T>(
+        action: string,
+        params: Record<string, any> = {}
+    ): Promise<T> {
+        try {
+            const url = new URL(this.apiUrl);
+            url.searchParams.append('action', action);
+            url.searchParams.append('apiKey', this.apiKey);
 
-        Object.entries(params).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && value !== '') {
-                url.searchParams.append(key, String(value));
+            // Add additional parameters
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    url.searchParams.append(key, String(value));
+                }
+            });
+
+            const response = await fetch(url.toString(), {
+                method: 'GET',
+                // No headers - Apps Script handles CORS automatically
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-        });
 
-        const response = await fetch(url.toString(), { method: 'GET' });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        const result: ApiResponse<T> = await response.json();
-        if (!result.success) throw new Error(result.error || 'API request failed');
-        
-        return result.data;
+            const result: ApiResponse<T> = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'API request failed');
+            }
+
+            return result.data;
+        } catch (error) {
+            console.error(`API error (${action}):`, error);
+            throw error;
+        }
     }
 
+    /**
+     * Get deals with filtering
+     */
     async getDeals(params: DealsParams): Promise<Deal[]> {
-        return this.fetch<Deal[]>('deals', {
+        const queryParams: Record<string, any> = {
             dateFrom: params.dateFrom,
             dateTo: params.dateTo,
-            ...(params.managerId && params.managerId !== 'all' && { managerId: params.managerId }),
-            ...(params.source && params.source !== 'all' && { source: params.source }),
-        });
+        };
+
+        if (params.managerId && params.managerId !== 'all') {
+            queryParams.managerId = params.managerId;
+        }
+
+        if (params.source && params.source !== 'all') {
+            queryParams.source = params.source;
+        }
+
+        return this.fetch<Deal[]>('deals', queryParams);
     }
 
+    /**
+     * Get KPI activity data
+     */
     async getKPI(params: KpiParams): Promise<KpiActivity[]> {
-        return this.fetch<KpiActivity[]>('kpi', {
+        const queryParams: Record<string, any> = {
             dateFrom: params.dateFrom,
             dateTo: params.dateTo,
-            ...(params.managerId && params.managerId !== 'all' && { managerId: params.managerId }),
-        });
+        };
+
+        if (params.managerId && params.managerId !== 'all') {
+            queryParams.managerId = params.managerId;
+        }
+
+        return this.fetch<KpiActivity[]>('kpi', queryParams);
     }
 
+    /**
+     * Get list of managers
+     */
     async getManagers(): Promise<Manager[]> {
         return this.fetch<Manager[]>('managers');
     }
 
+    /**
+     * Get sync status
+     */
     async getSyncStatus(): Promise<SyncStatus> {
         return this.fetch<SyncStatus>('sync-status');
     }
 }
 
+// Export singleton instance
 export const api = new BizGiftAPI();
