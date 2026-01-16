@@ -252,7 +252,7 @@ const AdminPanel: React.FC = () => {
                         <UserPlus size={20} className="text-blue-600" />
                         Новый пользователь
                     </h2>
-                    <form onSubmit={handleAddUser} className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <form onSubmit={handleAddUser} className="grid grid-cols-1 md:grid-cols-6 gap-4">
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Email</label>
                             <input
@@ -273,6 +273,18 @@ const AdminPanel: React.FC = () => {
                                 onChange={(e) => setNewDisplayName(e.target.value)}
                                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                                 placeholder="Имя Фамилия"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Пароль</label>
+                            <input
+                                type="password"
+                                required
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                placeholder="Минимум 6 символов"
+                                minLength={6}
                             />
                         </div>
                         <div className="space-y-1">
