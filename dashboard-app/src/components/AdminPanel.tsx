@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import {
     collection, query, getDocs, doc, updateDoc,
-    deleteDoc, setDoc, serverTimestamp
+    setDoc, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
