@@ -1,70 +1,264 @@
-// Mock data generator for development without backend
+/**
+ * Mock Data Generators for BizGift Dashboard
+ * Provides realistic test data for all components
+ */
 
-import type { Deal, KpiActivity, Manager } from '../types/api';
+import type { Deal, KpiActivity, Manager, DealsParams, KpiParams } from '../types/api';
 
-const MANAGERS_LIST: Manager[] = [
-    { manager_id: 1, manager_name: 'Алексей Смирнов', avatar_color: 'bg-blue-500', is_active: true },
-    { manager_id: 2, manager_name: 'Мария Иванова', avatar_color: 'bg-emerald-500', is_active: true },
-    { manager_id: 3, manager_name: 'Дмитрий Петров', avatar_color: 'bg-purple-500', is_active: true },
-    { manager_id: 4, manager_name: 'Елена Соколова', avatar_color: 'bg-amber-500', is_active: true },
-];
+/**
+ * Generate mock deals based on parameters
+ */
+export const generateMockDeals = (params: DealsParams): Deal[] => {
+    const { dateFrom, dateTo, managerId, source } = params;
 
-const STAGES = [
-    'Новая заявка', 'Потребность выявлена', 'КП отправлено',
-    'КП на рассмотрении', 'КП согласовано', 'Договор/Счет отправлен',
-    'Договор/Счет предоплачен', 'Сделка успешна'
-] as const;
+    const managers = generateMockManagers();
+    const sources = ['Сайт', 'Холодный звонок', 'Email', 'Реклама', 'Рекомендация'];
+    const stages: Deal['stage'][] = [
+        'Новая заявка',
+        'Потребность выявлена',
+        'КП отправлено',
+        'КП на рассмотрении',
+        'КП согласовано',
+        'Договор/Счет отправлен',
+        'Договор/Счет предоплачен',
+        'Сделка успешна',
+        'Провал'
+    ];
 
-export function generateMockData() {
     const deals: Deal[] = [];
-    const kpi: Record<number, KpiActivity> = {};
+    const fromDate = new Date(dateFrom);
+    const toDate = new Date(dateTo);
+    const daysDiff = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
 
-    MANAGERS_LIST.forEach((m) => {
-        kpi[m.manager_id] = {
-            manager_id: m.manager_id, manager_name: m.manager_name,
-            calls_30_sec_count: Math.floor(Math.random() * 800) + 200,
-            offers_sent_count: Math.floor(Math.random() * 40) + 10,
-            needs_count: Math.floor(Math.random() * 50) + 10,
-            offers_agreed_count: Math.floor(Math.random() * 10),
-        };
-    });
+    // Generate 20-50 deals
+    const dealsCount = Math.floor(Math.random() * 30) + 20;
 
-    const startDate = new Date(2025, 8, 1);
-    const endDate = new Date(2025, 10, 25);
-    const timeDiff = endDate.getTime() - startDate.getTime();
+    for (let i = 0; i < dealsCount; i++) {
+        const randomManager = managers[Math.floor(Math.random() * managers.length)];
+        const randomSource = sources[Math.floor(Math.random() * sources.length)];
+        const randomStage = stages[Math.floor(Math.random() * stages.length)];
 
-    for (let i = 0; i < 600; i++) {
-        const manager = MANAGERS_LIST[Math.floor(Math.random() * MANAGERS_LIST.length)];
-        const isSuccess = Math.random() > 0.6;
-        const isLost = !isSuccess && Math.random() > 0.4;
-        let stage: Deal['stage'] = isSuccess ? 'Сделка успешна' : isLost ? 'Провал' : STAGES[Math.floor(Math.random() * (STAGES.length - 1))];
-        const amount = Math.floor(Math.random() * 450000) + 50000;
-        const marginPercent = 0.2 + Math.random() * 0.25;
-        const cost = amount * (1 - marginPercent);
-        const dealDate = new Date(startDate.getTime() + Math.random() * timeDiff);
-        const cycleDays = Math.floor(Math.random() * 28) + 2;
-        const closeDate = new Date(dealDate.getTime() + cycleDays * 86400000).toISOString().split('T')[0];
-        const stageDurations: Record<string, number> = {};
-        const currentStageIdx = STAGES.indexOf(stage === 'Провал' ? 'Новая заявка' : stage);
-        STAGES.forEach((s, idx) => {
-            if (idx <= currentStageIdx || stage === 'Сделка успешна') {
-                stageDurations[s] = idx < 2 ? Math.floor(Math.random() * 3) + 1 : idx < 5 ? Math.floor(Math.random() * 7) + 2 : Math.floor(Math.random() * 5) + 1;
-            }
-        });
+        // Random date within range
+        const randomDay = Math.floor(Math.random() * daysDiff);
+        const dealDate = new Date(fromDate);
+        dealDate.setDate(dealDate.getDate() + randomDay);
+
+        // Skip if filters don't match
+        if (managerId && managerId !== 'all' && randomManager.manager_id !== managerId) continue;
+        if (source && source !== 'all' && randomSource !== source) continue;
+
+        const amount = Math.floor(Math.random() * 300000) + 50000;
+        const costPercent = 0.7 + Math.random() * 0.15; // 70-85%
+        const cost = Math.floor(amount * costPercent);
+        const margin = amount - cost;
+
         deals.push({
-            deal_id: `D-${2000 + i}`, deal_name: `Заказ #${2000 + i}`,
-            manager_id: manager.manager_id, manager_name: manager.manager_name, stage,
-            created_at: dealDate.toISOString().split('T')[0],
-            closed_at: isSuccess ? closeDate : null, lost_at: isLost ? closeDate : null,
-            amount: Math.floor(amount), cost: Math.floor(cost),
-            margin_value: Math.floor(amount - cost), margin_percent: marginPercent,
-            source: Math.random() > 0.5 ? 'Входящий звонок' : 'Сайт',
-            kp_date: stage !== 'Новая заявка' ? dealDate.toISOString().split('T')[0] : null,
-            kp_approved_date: currentStageIdx >= 4 ? closeDate : null,
-            payment_confirmed: isSuccess, payment_date: isSuccess ? closeDate : null,
-            payment_ratio: isSuccess ? (Math.random() > 0.3 ? 1.0 : 0.5) : 0,
-            stage_durations: stageDurations,
+            deal_id: `DEAL-${1000 + i}`,
+            deal_name: generateDealName(),
+            manager_id: randomManager.manager_id,
+            manager_name: randomManager.manager_name,
+            stage: randomStage,
+            created_at: dealDate.toISOString(),
+            closed_at: randomStage === 'Сделка успешна' ? new Date(dealDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() : null,
+            lost_at: randomStage === 'Провал' ? new Date(dealDate.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString() : null,
+            amount,
+            cost,
+            margin_value: margin,
+            margin_percent: ((margin / amount) * 100),
+            source: randomSource,
+            kp_date: ['КП отправлено', 'КП на рассмотрении', 'КП согласовано'].includes(randomStage)
+                ? new Date(dealDate.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString()
+                : null,
+            kp_approved_date: randomStage === 'КП согласовано'
+                ? new Date(dealDate.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString()
+                : null,
+            payment_confirmed: randomStage === 'Сделка успешна',
+            payment_date: randomStage === 'Сделка успешна'
+                ? new Date(dealDate.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString()
+                : null,
+            payment_ratio: randomStage === 'Сделка успешна' ? 1 : 0,
+            stage_durations: {}
         });
     }
-    return { managers: MANAGERS_LIST, deals, kpi };
-}
+
+    return deals.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+};
+
+/**
+ * Generate mock KPI activity data
+ */
+export const generateMockKPI = (params: KpiParams): KpiActivity[] => {
+    const managers = generateMockManagers();
+
+    return managers
+        .filter(m => !params.managerId || params.managerId === 'all' || m.manager_id === params.managerId)
+        .map(manager => ({
+            manager_id: manager.manager_id,
+            manager_name: manager.manager_name,
+            calls_30_sec_count: Math.floor(Math.random() * 80) + 40,
+            offers_sent_count: Math.floor(Math.random() * 20) + 5,
+            needs_count: Math.floor(Math.random() * 30) + 10,
+            offers_agreed_count: Math.floor(Math.random() * 15) + 3
+        }));
+};
+
+/**
+ * Generate mock managers list
+ */
+export const generateMockManagers = (): Manager[] => {
+    return [
+        {
+            manager_id: 1,
+            manager_name: 'Антон Федотов',
+            avatar_color: '#6366f1',
+            is_active: true
+        },
+        {
+            manager_id: 2,
+            manager_name: 'Антон Маркелов',
+            avatar_color: '#8b5cf6',
+            is_active: true
+        },
+        {
+            manager_id: 3,
+            manager_name: 'Ксения Коледова',
+            avatar_color: '#ec4899',
+            is_active: true
+        }
+    ];
+};
+
+/**
+ * Generate metrics data for dashboard cards
+ */
+export const generateMockMetrics = (dateRange: { from: string; to: string }) => {
+    const deals = generateMockDeals({ dateFrom: dateRange.from, dateTo: dateRange.to });
+    const successfulDeals = deals.filter(d => d.stage === 'Сделка успешна');
+
+    const totalRevenue = successfulDeals.reduce((sum, d) => sum + d.amount, 0);
+    const totalMargin = successfulDeals.reduce((sum, d) => sum + d.margin_value, 0);
+    const totalDeals = deals.length;
+    const conversion = totalDeals > 0 ? (successfulDeals.length / totalDeals) * 100 : 0;
+
+    return {
+        revenue: {
+            value: totalRevenue,
+            change: (Math.random() - 0.3) * 20 // -6% to +14%
+        },
+        margin: {
+            value: totalMargin,
+            change: (Math.random() - 0.2) * 15
+        },
+        deals: {
+            value: totalDeals,
+            change: (Math.random() - 0.5) * 10
+        },
+        conversion: {
+            value: conversion,
+            change: (Math.random() - 0.3) * 8
+        }
+    };
+};
+
+/**
+ * Generate sales chart data
+ */
+export const generateMockSalesData = (dateRange: { from: string; to: string }) => {
+    const fromDate = new Date(dateRange.from);
+    const toDate = new Date(dateRange.to);
+    const daysDiff = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    const data = [];
+    let prevRevenue = 30000;
+
+    for (let i = 0; i <= daysDiff; i++) {
+        const date = new Date(fromDate);
+        date.setDate(date.getDate() + i);
+
+        // Add some variation but keep trend
+        const variance = (Math.random() - 0.5) * 15000;
+        const revenue = Math.max(10000, prevRevenue + variance);
+        const margin = revenue * (0.15 + Math.random() * 0.1); // 15-25% margin
+
+        data.push({
+            date: date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+            revenue: Math.floor(revenue),
+            margin: Math.floor(margin)
+        });
+
+        prevRevenue = revenue;
+    }
+
+    return data;
+};
+
+/**
+ * Generate manager performance data
+ */
+export const generateMockManagerPerformance = (dateRange: { from: string; to: string }) => {
+    const managers = generateMockManagers();
+    const deals = generateMockDeals({ dateFrom: dateRange.from, dateTo: dateRange.to });
+
+    return managers.map(manager => {
+        const managerDeals = deals.filter(d => d.manager_id === manager.manager_id);
+        const successfulDeals = managerDeals.filter(d => d.stage === 'Сделка успешна');
+        const revenue = successfulDeals.reduce((sum, d) => sum + d.amount, 0);
+        const conversion = managerDeals.length > 0
+            ? (successfulDeals.length / managerDeals.length) * 100
+            : 0;
+
+        return {
+            name: manager.manager_name,
+            deals: managerDeals.length,
+            revenue,
+            conversion
+        };
+    });
+};
+
+/**
+ * Helper: Generate random deal name
+ */
+const generateDealName = (): string => {
+    const products = [
+        'Новогодние корзины',
+        'Подарочные наборы',
+        'VIP подарки',
+        'Промо-продукция',
+        'Корпоративные сувениры',
+        'Брендированная упаковка',
+        'Эксклюзивные подарки',
+        'Сезонные наборы'
+    ];
+
+    const companies = [
+        'ООО "Рога и Копыта"',
+        'ПАО "Газпром"',
+        'АО "РЖД"',
+        'ООО "Яндекс"',
+        'ООО "Тинькофф"',
+        'для сотрудников',
+        'для партнёров',
+        'для топ-менеджеров'
+    ];
+
+    const product = products[Math.floor(Math.random() * products.length)];
+    const company = companies[Math.floor(Math.random() * companies.length)];
+
+    return `${product} ${company}`;
+};
+
+/**
+ * Sync status mock
+ */
+export const generateMockSyncStatus = () => {
+    const now = new Date();
+    const lastSync = new Date(now.getTime() - Math.random() * 60 * 60 * 1000); // Last hour
+
+    return {
+        last_sync_deals: lastSync.toISOString(),
+        last_sync_calls: lastSync.toISOString(),
+        deals_count: Math.floor(Math.random() * 100) + 50,
+        calls_count: Math.floor(Math.random() * 500) + 200
+    };
+};

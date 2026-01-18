@@ -1,13 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
-
-const ADMIN_EMAILS = {
-    'scorcioner@gmail.com': { role: 'super-admin', name: 'Антон Федотов' },
-    'vegapro.mcc@gmail.com': { role: 'admin', name: 'Антон Маркелов' },
-    'koledova49@gmail.com': { role: 'manager', name: 'Ксения Коледова' }
-} as const;
+import { ADMIN_EMAILS } from '../config/users.config';
 
 interface UserProfile {
     uid: string;
@@ -20,9 +15,10 @@ interface AuthContextType {
     user: User | null;
     profile: UserProfile | null;
     loading: boolean;
+    logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, profile: null, loading: true });
+const AuthContext = createContext<AuthContextType>({ user: null, profile: null, loading: true, logout: async () => { } });
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -73,8 +69,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return () => unsubscribe();
     }, []);
 
+    const logout = async () => {
+        await signOut(auth);
+        setUser(null);
+        setProfile(null);
+    };
+
     return (
-        <AuthContext.Provider value={{ user, profile, loading }}>
+        <AuthContext.Provider value={{ user, profile, loading, logout }}>
             {!loading && children}
         </AuthContext.Provider>
     );

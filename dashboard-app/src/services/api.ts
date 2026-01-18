@@ -18,10 +18,15 @@ class BizGiftAPI {
         this.apiUrl = import.meta.env.VITE_API_URL || '';
         this.apiKey = import.meta.env.VITE_API_KEY || '';
 
+        // Enable mock data fallback if credentials not configured
         if (!this.apiUrl || !this.apiKey) {
-            console.warn(
-                'API credentials not configured. Set VITE_API_URL and VITE_API_KEY in .env file'
-            );
+            const useMockData = import.meta.env.VITE_USE_MOCK_DATA === 'true';
+            if (!useMockData) {
+                console.error(
+                    'API credentials not configured and mock data is disabled. ' +
+                    'Set VITE_API_URL and VITE_API_KEY in .env file, or enable VITE_USE_MOCK_DATA=true'
+                );
+            }
         }
     }
 

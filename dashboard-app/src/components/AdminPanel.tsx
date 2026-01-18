@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
+import { INITIAL_USERS } from '../config/users.config';
 
 interface UserProfile {
     uid: string;
@@ -172,19 +173,15 @@ const AdminPanel: React.FC = () => {
     const seedInitialUsers = async () => {
         if (currentProfile?.role !== 'super-admin') return;
 
-        const initialUsers = [
-            { email: 'scorcioner@gmail.com', name: 'Антон Федотов', role: 'super-admin' },
-            { email: 'vegapro.mcc@gmail.com', name: 'Антон Маркелов', role: 'admin' },
-            { email: 'koledova49@gmail.com', name: 'Ксения Коледова', role: 'manager' }
-        ];
-
         try {
             setLoading(true);
-            for (const u of initialUsers) {
+            for (const u of INITIAL_USERS) {
                 // We use a query to avoid duplicates if possible, or just overwrite for the seed
                 // In real app, we search by email
-                await setDoc(doc(db, 'users_init', u.email.replace('.', '_')), {
-                    ...u,
+                await setDoc(doc(db, 'users_init', u.email.replace(/\./g, '_')), {
+                    email: u.email,
+                    name: u.name,
+                    role: u.role,
                     seededAt: serverTimestamp()
                 });
             }
@@ -453,11 +450,12 @@ const AdminPanel: React.FC = () => {
                             Введите новый пароль для пользователя.
                         </p>
                         <input
-                            type="text"
+                            type="password"
                             value={resetNewPassword}
                             onChange={(e) => setResetNewPassword(e.target.value)}
-                            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-4 font-mono"
+                            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-4"
                             placeholder="Новый пароль (минимум 6 симв.)"
+                            minLength={6}
                         />
                         <div className="flex gap-3">
                             <button
