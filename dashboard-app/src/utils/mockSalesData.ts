@@ -1,12 +1,12 @@
-// Mock Data Generator for Sales Dashboard
+// Mock Data Generator - Full version matching original source
 
-import type { Manager, Deal, DealStage, KpiActivity } from '../types/sales';
+import type { Manager, Deal, KpiActivity, DealStage } from '../types/sales';
 
 export const MANAGERS_LIST: Manager[] = [
-    { manager_id: 1, manager_name: 'Алексей Смирнов', avatar_color: 'bg-blue-500', is_active: true },
-    { manager_id: 2, manager_name: 'Мария Иванова', avatar_color: 'bg-emerald-500', is_active: true },
-    { manager_id: 3, manager_name: 'Дмитрий Петров', avatar_color: 'bg-purple-500', is_active: true },
-    { manager_id: 4, manager_name: 'Елена Соколова', avatar_color: 'bg-amber-500', is_active: true },
+    { manager_id: 1, manager_name: 'Алексей Смирнов', avatar_color: 'bg-blue-500' },
+    { manager_id: 2, manager_name: 'Мария Иванова', avatar_color: 'bg-emerald-500' },
+    { manager_id: 3, manager_name: 'Дмитрий Петров', avatar_color: 'bg-purple-500' },
+    { manager_id: 4, manager_name: 'Елена Соколова', avatar_color: 'bg-amber-500' },
 ];
 
 const STAGES: DealStage[] = [
@@ -20,7 +20,7 @@ const STAGES: DealStage[] = [
     'Сделка успешна'
 ];
 
-export function generateData() {
+export function generateData(): { managers: Manager[], deals: Deal[], kpi: Record<number, KpiActivity> } {
     const deals: Deal[] = [];
     const kpi: Record<number, KpiActivity> = {};
 
@@ -34,8 +34,8 @@ export function generateData() {
         };
     });
 
-    const startDate = new Date(2025, 8, 1);
-    const endDate = new Date(2025, 10, 25);
+    const startDate = new Date(2025, 8, 1);  // Sept 1, 2025
+    const endDate = new Date(2025, 10, 25);  // Nov 25, 2025
     const timeDiff = endDate.getTime() - startDate.getTime();
 
     for (let i = 0; i < 600; i++) {

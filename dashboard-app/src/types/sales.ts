@@ -73,3 +73,41 @@ export interface ManagerIncome {
         dealsCount: number;
     };
 }
+
+export interface FunnelStats {
+    name: string;
+    value: number;
+    avgDays: number;
+}
+
+export interface DashboardStats {
+    volume: number;
+    cost: number;
+    margin: number;
+    marginPercentTotal: number;
+    avgCheck: number;
+    successfulCount: number;
+    funnelCounts: {
+        needs: number;
+        offers: number;
+        agreed: number;
+        won: number;
+    };
+    fullFunnelStats: FunnelStats[];
+    convNeedsToOffer: number;
+    convOfferToAgreed: number;
+    convNewToWon: number;
+    convNewToLost: number;
+    avgCycleWon: number;
+    avgCycleLost: number;
+}
+
+export interface DealsSummary {
+    volume: number;
+    cost: number;
+    margin: number;
+    bonus: number;
+    avgMargin: number;
+    avgCycleSuccess: number;
+    avgCycleFail: number;
+}

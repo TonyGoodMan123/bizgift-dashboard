@@ -1,6 +1,6 @@
-// Salary Calculation Utilities
+// Salary Calculation Utilities - Full version from original source
 
-import type { Deal, Manager, KpiActivity, ManagerIncome } from '../types/sales';
+import type { Deal, Manager, KpiActivity, ManagerIncome, DashboardStats, DealStage, FunnelStats, DealsSummary } from '../types/sales';
 
 export const CONFIG = {
     FIX_SALARY_BASE: 30000,
@@ -14,6 +14,17 @@ export const CONFIG = {
     CONV_NEEDS_TARGET: 0.9,
     CONV_AGREED_TARGET: 0.25,
 };
+
+export const STAGES: DealStage[] = [
+    'Новая заявка',
+    'Потребность выявлена',
+    'КП отправлено',
+    'КП на рассмотрении',
+    'КП согласовано',
+    'Договор/Счет отправлен',
+    'Договор/Счет предоплачен',
+    'Сделка успешна'
+];
 
 // Working days calculator (Mon-Fri)
 export function getWorkingDays(startDateStr: string, endDateStr: string): number {
@@ -90,11 +101,7 @@ export function calcManagerIncome(
     const bonusDeals = successfulDeals.map(d => {
         const premPercent = calcPremPercent(d.margin_percent);
         const bonus = calcDealBonus(d);
-        return {
-            ...d,
-            premPercent,
-            bonus
-        };
+        return { ...d, premPercent, bonus };
     });
 
     const marginBonusTotal = bonusDeals.reduce((sum, d) => sum + d.bonus, 0);
@@ -108,26 +115,133 @@ export function calcManagerIncome(
         kpi: {
             total: kpiFlexTotal,
             details: {
-                callsBonus,
-                callsBonusRaw,
-                offersBonus,
-                offersBonusRaw,
-                convNeedsBonus,
-                convNeeds,
-                convAgreedBonus,
-                convAgreed,
-                highMarginBonus,
-                highMarginBonusRaw,
-                highMarginCount
+                callsBonus, callsBonusRaw,
+                offersBonus, offersBonusRaw,
+                convNeedsBonus, convNeeds,
+                convAgreedBonus, convAgreed,
+                highMarginBonus, highMarginBonusRaw, highMarginCount
             }
         },
         marginBonus: marginBonusTotal,
         bonusDeals,
         totalIncome: calculatedFix + kpiFlexTotal + marginBonusTotal,
-        stats: {
-            salesVolume,
-            marginVolume,
-            dealsCount: successfulDeals.length
-        }
+        stats: { salesVolume, marginVolume, dealsCount: successfulDeals.length }
     };
 }
+
+// Calculate dashboard stats
+export function calculateStats(deals: Deal[]): DashboardStats {
+    const successful = deals.filter(d => d.stage === 'Сделка успешна');
+    const lost = deals.filter(d => d.stage === 'Провал');
+    const totalDeals = deals.length;
+
+    const volume = successful.reduce((acc, val) => acc + val.amount, 0);
+    const cost = successful.reduce((acc, val) => acc + val.cost, 0);
+    const margin = successful.reduce((acc, val) => acc + val.margin_value, 0);
+    const marginPercentTotal = volume > 0 ? (margin / volume) * 100 : 0;
+    const avgCheck = successful.length ? volume / successful.length : 0;
+
+    const countPassedStage = (minStageIndex: number) => {
+        return deals.filter(d => {
+            if (d.stage === 'Провал') return false;
+            const idx = STAGES.indexOf(d.stage);
+            return idx >= minStageIndex;
+        }).length;
+    };
+
+    const funnelCounts = {
+        needs: countPassedStage(1),
+        offers: countPassedStage(2),
+        agreed: countPassedStage(4),
+        won: successful.length
+    };
+
+    const fullFunnelStats: FunnelStats[] = STAGES.map((stageName, idx) => {
+        const count = countPassedStage(idx);
+        const relevantDeals = deals.filter(d => d.stage_durations && d.stage_durations[stageName] !== undefined);
+        const totalDays = relevantDeals.reduce((sum, d) => sum + d.stage_durations[stageName], 0);
+        const avgDays = relevantDeals.length ? totalDays / relevantDeals.length : 0;
+        return { name: stageName, value: count, avgDays };
+    });
+
+    const convNeedsToOffer = funnelCounts.needs > 0 ? (funnelCounts.offers / funnelCounts.needs) * 100 : 0;
+    const convOfferToAgreed = funnelCounts.offers > 0 ? (funnelCounts.agreed / funnelCounts.offers) * 100 : 0;
+    const convNewToWon = totalDeals > 0 ? (successful.length / totalDeals) * 100 : 0;
+    const convNewToLost = totalDeals > 0 ? (lost.length / totalDeals) * 100 : 0;
+
+    const getDiffDays = (start: string, end: string | null) => {
+        if (!end) return 0;
+        const d1 = new Date(start).getTime();
+        const d2 = new Date(end).getTime();
+        return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+    };
+
+    const avgCycleWon = successful.length
+        ? successful.reduce((acc, d) => acc + getDiffDays(d.created_at, d.closed_at), 0) / successful.length
+        : 0;
+
+    const avgCycleLost = lost.length
+        ? lost.reduce((acc, d) => acc + getDiffDays(d.created_at, d.lost_at), 0) / lost.length
+        : 0;
+
+    return {
+        volume, cost, margin, marginPercentTotal, avgCheck,
+        successfulCount: successful.length, funnelCounts, fullFunnelStats,
+        convNeedsToOffer, convOfferToAgreed, convNewToWon, convNewToLost,
+        avgCycleWon, avgCycleLost
+    };
+}
+
+// Calculate deals summary
+export function calculateDealsSummary(deals: Deal[]): DealsSummary {
+    const successful = deals.filter(d => d.stage === 'Сделка успешна');
+    const lost = deals.filter(d => d.stage === 'Провал');
+
+    const volume = deals.reduce((sum, d) => sum + d.amount, 0);
+    const cost = deals.reduce((sum, d) => sum + d.cost, 0);
+    const margin = deals.reduce((sum, d) => sum + d.margin_value, 0);
+    const bonus = deals.reduce((sum, d) => sum + (d.stage === 'Сделка успешна' ? calcDealBonus(d) : 0), 0);
+    const avgMargin = volume > 0 ? (margin / volume) * 100 : 0;
+
+    const getDiffDays = (start: string, end: string | null) => {
+        if (!end) return 0;
+        const d1 = new Date(start).getTime();
+        const d2 = new Date(end).getTime();
+        return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+    };
+
+    const avgCycleSuccess = successful.length
+        ? successful.reduce((acc, d) => acc + getDiffDays(d.created_at, d.closed_at), 0) / successful.length
+        : 0;
+
+    const avgCycleFail = lost.length
+        ? lost.reduce((acc, d) => acc + getDiffDays(d.created_at, d.lost_at), 0) / lost.length
+        : 0;
+
+    return { volume, cost, margin, bonus, avgMargin, avgCycleSuccess, avgCycleFail };
+}
+
+// Get deal cycle days
+export function getDealCycle(deal: Deal): number | string {
+    if (deal.closed_at) {
+        const start = new Date(deal.created_at).getTime();
+        const end = new Date(deal.closed_at).getTime();
+        return Math.floor((end - start) / (1000 * 60 * 60 * 24));
+    }
+    if (deal.lost_at) {
+        const start = new Date(deal.created_at).getTime();
+        const end = new Date(deal.lost_at).getTime();
+        return Math.floor((end - start) / (1000 * 60 * 60 * 24));
+    }
+    return '-';
+}
+
+// Get difference percentage
+export function getDiff(current: number, prev: number): number {
+    if (prev === 0) return current === 0 ? 0 : 100;
+    return ((current - prev) / prev) * 100;
+}
+
+// Format helpers
+export const formatMoney = (val: number) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(val);
+export const formatPercent = (val: number) => (val * 100).toFixed(1) + '%';
