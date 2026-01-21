@@ -45,8 +45,8 @@ const SalesDashboard: React.FC = () => {
     const [, setIsSalaryLoading] = useState(false);
 
     useEffect(() => {
-        // Don't fetch salary data if user is not authenticated
-        if (!profile) {
+        // Don't fetch salary data if user is not authenticated OR API is not configured
+        if (!profile || !import.meta.env.VITE_API_URL) {
             return;
         }
 
@@ -58,6 +58,7 @@ const SalesDashboard: React.FC = () => {
                 setSalaryData(results);
             } catch (err) {
                 console.error('Failed to fetch salary data:', err);
+                // Don't crash on API errors in demo mode
             } finally {
                 setIsSalaryLoading(false);
             }
