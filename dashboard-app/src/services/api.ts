@@ -38,6 +38,11 @@ class BizGiftAPI {
         action: string,
         params: Record<string, any> = {}
     ): Promise<T> {
+        // Check if API is configured
+        if (!this.apiUrl) {
+            throw new Error('API_NOT_CONFIGURED: VITE_API_URL not set in environment');
+        }
+
         try {
             const url = new URL(this.apiUrl);
             url.searchParams.append('action', action);
