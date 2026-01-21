@@ -8,6 +8,7 @@ import type {
     SyncStatus,
     DealsParams,
     KpiParams,
+    SalaryData,
 } from '../types/api';
 
 class BizGiftAPI {
@@ -119,6 +120,13 @@ class BizGiftAPI {
      */
     async getSyncStatus(): Promise<SyncStatus> {
         return this.fetch<SyncStatus>('sync-status');
+    }
+
+    /**
+     * Get salary data for a specific month
+     */
+    async getSalary(params: { month: string; managerId?: number | 'all' }): Promise<SalaryData[]> {
+        return this.fetch<SalaryData[]>('salary', params);
     }
 }
 

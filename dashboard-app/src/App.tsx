@@ -33,11 +33,11 @@ const App: React.FC = () => {
             {/* Public Routes */}
             <Route
                 path="/"
-                element={user ? <Navigate to="/dashboard" replace /> : <Login />}
+                element={user && profile ? <Navigate to="/dashboard" replace /> : <Login />}
             />
             <Route
                 path="/register"
-                element={user ? <Navigate to="/dashboard" replace /> : <Login />}
+                element={user && profile ? <Navigate to="/dashboard" replace /> : <Login />}
             />
 
             {/* Protected Routes */}

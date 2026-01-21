@@ -79,3 +79,20 @@ export interface KpiParams {
     dateTo: string;
     managerId?: number | 'all';
 }
+export interface SalaryParams {
+    month: string;
+    managerId?: number | 'all';
+}
+
+export interface SalaryData {
+    manager_id: number;
+    manager_name: string;
+    month: string;
+    salary_fixed: number;
+    kpi_calls_bonus: number;
+    kpi_offers_bonus: number;
+    kpi_conversion_bonus: number;
+    kpi_margin_bonus: number;
+    salary_total: number;
+    is_active: boolean;
+}

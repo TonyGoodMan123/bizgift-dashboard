@@ -7,7 +7,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import type { Manager, Deal, KpiActivity } from '../types/sales';
+import { useDashboardData } from '../hooks/useDashboardData';
+import { api } from '../services/api';
+import type { Manager, Deal, KpiActivity, SalaryData } from '../types/api';
 import {
     CONFIG, calcManagerIncome, calcPremPercent, calcDealBonus,
     calculateStats, calculateDealsSummary, getDealCycle, getDiff,
@@ -22,16 +24,61 @@ const SalesDashboard: React.FC = () => {
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState('overview');
-    const [data, setData] = useState<{ managers: Manager[], deals: Deal[], kpi: Record<number, KpiActivity> } | null>(null);
-
     const [managerFilter, setManagerFilter] = useState<number | 'all'>('all');
-    const [dateFrom, setDateFrom] = useState('2025-10-01');
-    const [dateTo, setDateTo] = useState('2025-11-25');
-    const [compareDateFrom, setCompareDateFrom] = useState('2025-09-01');
-    const [compareDateTo, setCompareDateTo] = useState('2025-09-30');
+    const [dateFrom, setDateFrom] = useState('2025-11-01');
+    const [dateTo, setDateTo] = useState('2025-11-30');
+    const [compareDateFrom, setCompareDateFrom] = useState('2025-10-01');
+    const [compareDateTo, setCompareDateTo] = useState('2025-10-31');
     const [isSidebarOpen, setSidebarOpen] = useState(true);
 
-    useEffect(() => { setData(generateData()); }, []);
+    // Fetch primary data
+    const {
+        deals: fetchedDeals,
+        managers: fetchedManagers,
+        kpiData: fetchedKpi,
+        isLoading: isMainLoading,
+        error: mainError
+    } = useDashboardData({ from: dateFrom, to: dateTo });
+
+    // Fetch salary data (Source of Truth for financial results)
+    const [salaryData, setSalaryData] = useState<SalaryData[]>([]);
+    const [isSalaryLoading, setIsSalaryLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchSalaries = async () => {
+            const currentMonth = dateFrom.substring(0, 7); // YYYY-MM
+            setIsSalaryLoading(true);
+            try {
+                const results = await api.getSalary({ month: currentMonth });
+                setSalaryData(results);
+            } catch (err) {
+                console.error('Failed to fetch salary data:', err);
+            } finally {
+                setIsSalaryLoading(false);
+            }
+        };
+        fetchSalaries();
+    }, [dateFrom]);
+
+    // Data normalization for component logic
+    const data = useMemo(() => {
+        if (isMainLoading || !fetchedManagers.length) return null;
+
+        // Convert kpiData from array to Record<number, KpiActivity>
+        const kpiMap: Record<number, KpiActivity> = {};
+        fetchedKpi.forEach(k => {
+            kpiMap[k.manager_id] = k;
+        });
+
+        return {
+            managers: fetchedManagers.map(m => ({
+                ...m,
+                avatar_color: m.avatar_color || 'bg-blue-500' // Ensure fallback
+            })),
+            deals: fetchedDeals,
+            kpi: kpiMap
+        };
+    }, [fetchedManagers, fetchedDeals, fetchedKpi, isMainLoading]);
 
     const getFilteredDeals = (deals: Deal[], start: string, end: string) => {
         return deals.filter(d => {
@@ -67,11 +114,34 @@ const SalesDashboard: React.FC = () => {
     }, [stats, compareStats]);
 
     const managersRating = useMemo(() => {
-        if (!data || !currentDeals) return [];
-        return data.managers.map(m =>
-            calcManagerIncome(m, currentDeals.filter(d => d.manager_id === m.manager_id), data.kpi[m.manager_id], dateFrom, dateTo)
-        ).sort((a, b) => b.stats.marginVolume - a.stats.marginVolume);
-    }, [data, currentDeals, dateFrom, dateTo]);
+        if (!data) return [];
+        return data.managers.map(m => {
+            const income = calcManagerIncome(m as any, currentDeals.filter(d => d.manager_id === m.manager_id), data.kpi[m.manager_id], dateFrom, dateTo);
+
+            // OVERRIDE WITH BACKEND SALARY IF AVAILABLE (ZERO DEVIATION PRINCIPLE)
+            const backendSalary = salaryData.find(s => s.manager_id === m.manager_id);
+            if (backendSalary) {
+                return {
+                    ...income,
+                    fix: backendSalary.salary_fixed,
+                    kpi: {
+                        ...income.kpi,
+                        total: backendSalary.kpi_calls_bonus + backendSalary.kpi_offers_bonus + backendSalary.kpi_conversion_bonus,
+                        details: {
+                            ...income.kpi.details,
+                            callsBonus: backendSalary.kpi_calls_bonus,
+                            offersBonus: backendSalary.kpi_offers_bonus,
+                            convNeedsBonus: backendSalary.kpi_conversion_bonus,
+                            // Note: margin bonus is handled separately in backend structure
+                        }
+                    },
+                    marginBonus: backendSalary.kpi_margin_bonus,
+                    totalIncome: backendSalary.salary_total
+                };
+            }
+            return income;
+        }).sort((a, b) => b.stats.marginVolume - a.stats.marginVolume);
+    }, [data, currentDeals, salaryData, dateFrom, dateTo]);
 
     const dealsSummary = useMemo(() => {
         if (!currentDeals.length) return null;
@@ -80,16 +150,33 @@ const SalesDashboard: React.FC = () => {
 
     const handleLogout = async () => { await logout(); navigate('/'); };
 
-    if (!data || !stats) {
+    if (isMainLoading && !data) {
         return (
-            <div className="flex items-center justify-center h-screen bg-slate-50">
+            <div className="flex items-center justify-center h-screen bg-slate-900">
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-500 font-medium">Загрузка данных BizGift...</p>
+                    <p className="text-slate-400 font-medium">Загрузка данных из Битрикс24...</p>
                 </div>
             </div>
         );
     }
+
+    if (mainError && !data) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-slate-900 p-4">
+                <div className="max-w-md bg-slate-800 rounded-2xl p-8 border border-red-500/50 shadow-xl text-center">
+                    <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <AlertCircle className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Ошибка загрузки</h2>
+                    <p className="text-slate-400 text-sm mb-6">{mainError}</p>
+                    <button onClick={() => window.location.reload()} className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all">Попробовать снова</button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!data || !stats) return null;
 
     const currentManager = managerFilter === 'all' ? null : managersRating.find(r => r.manager.manager_id === managerFilter);
 
