@@ -62,7 +62,7 @@ export function calcDealBonus(deal: Deal): number {
 export function calcManagerIncome(
     manager: Manager,
     deals: Deal[],
-    activity: KpiActivity,
+    activity: KpiActivity | undefined | null,
     dateFrom: string,
     dateTo: string
 ): ManagerIncome {
@@ -73,17 +73,25 @@ export function calcManagerIncome(
     const dailyRate = CONFIG.FIX_SALARY_BASE / CONFIG.NORM_WORKING_DAYS;
     const calculatedFix = Math.round(dailyRate * workedDays);
 
-    // 2. KPI Flex
-    const callsBonusRaw = activity.calls_30_sec_count * CONFIG.BONUS_PER_CALL;
+    // 2. KPI Flex - use default values if activity is undefined
+    const safeActivity: KpiActivity = activity || {
+        manager_id: manager.manager_id,
+        calls_30_sec_count: 0,
+        offers_sent_count: 0,
+        needs_count: 0,
+        offers_agreed_count: 0
+    };
+
+    const callsBonusRaw = safeActivity.calls_30_sec_count * CONFIG.BONUS_PER_CALL;
     const callsBonus = Math.min(callsBonusRaw, CONFIG.KPI_LIMIT_PER_BLOCK);
 
-    const offersBonusRaw = activity.offers_sent_count * CONFIG.BONUS_PER_OFFER;
+    const offersBonusRaw = safeActivity.offers_sent_count * CONFIG.BONUS_PER_OFFER;
     const offersBonus = Math.min(offersBonusRaw, CONFIG.KPI_LIMIT_PER_BLOCK);
 
-    const convNeeds = activity.needs_count > 0 ? activity.offers_sent_count / activity.needs_count : 0;
+    const convNeeds = safeActivity.needs_count > 0 ? safeActivity.offers_sent_count / safeActivity.needs_count : 0;
     const convNeedsBonus = convNeeds >= CONFIG.CONV_NEEDS_TARGET ? CONFIG.KPI_LIMIT_PER_BLOCK : 0;
 
-    const convAgreed = activity.offers_sent_count > 0 ? activity.offers_agreed_count / activity.offers_sent_count : 0;
+    const convAgreed = safeActivity.offers_sent_count > 0 ? safeActivity.offers_agreed_count / safeActivity.offers_sent_count : 0;
     const convAgreedBonus = convAgreed >= CONFIG.CONV_AGREED_TARGET ? CONFIG.KPI_LIMIT_PER_BLOCK : 0;
 
     const highMarginCount = deals.filter(d => d.margin_percent >= CONFIG.HIGH_MARGIN_THRESHOLD).length;
