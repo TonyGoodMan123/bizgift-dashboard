@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 
 interface UserProfile {
     uid: string;
-    email: string | null;
+    email: string;
     role: 'super-admin' | 'admin' | 'manager';
     displayName: string;
 }
