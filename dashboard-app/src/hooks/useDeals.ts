@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Deal, DealsParams } from '../types/api';
 import { api } from '../services/api';
 
@@ -16,7 +16,7 @@ interface UseDealsResult {
  */
 export const useDeals = (params: DealsParams): UseDealsResult => {
     const [deals, setDeals] = useState<Deal[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchDeals = useCallback(async () => {
@@ -36,6 +36,11 @@ export const useDeals = (params: DealsParams): UseDealsResult => {
             setIsLoading(false);
         }
     }, [params.dateFrom, params.dateTo, params.managerId, params.source]);
+
+    // Fetch deals when params change
+    useEffect(() => {
+        fetchDeals();
+    }, [fetchDeals]);
 
     return {
         deals,

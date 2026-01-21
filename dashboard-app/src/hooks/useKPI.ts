@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { KpiActivity, KpiParams } from '../types/api';
 import { api } from '../services/api';
 
@@ -16,7 +16,7 @@ interface UseKPIResult {
  */
 export const useKPI = (params: KpiParams): UseKPIResult => {
     const [kpiData, setKpiData] = useState<KpiActivity[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchKPI = useCallback(async () => {
@@ -36,6 +36,11 @@ export const useKPI = (params: KpiParams): UseKPIResult => {
             setIsLoading(false);
         }
     }, [params.dateFrom, params.dateTo, params.managerId]);
+
+    // Fetch KPI when params change
+    useEffect(() => {
+        fetchKPI();
+    }, [fetchKPI]);
 
     return {
         kpiData,
