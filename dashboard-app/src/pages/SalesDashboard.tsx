@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     Users, DollarSign, Briefcase, TrendingUp, Filter,
-    LayoutDashboard, PieChart as PieIcon, List, Calculator,
+    LayoutDashboard, PieChart as PieIcon, List, Shield,
     Menu, ArrowRight, ShoppingCart, ArrowDown,
     Clock, XCircle, CheckCircle, Hourglass, Wallet, Info, Coins, LogOut
 } from 'lucide-react';
@@ -15,6 +15,7 @@ import {
 } from '../utils/salaryCalc';
 import { generateData } from '../utils/mockSalesData';
 import { Card } from '../components/Card';
+import AdminPanel from '../components/AdminPanel';
 
 const SalesDashboard: React.FC = () => {
     const { logout, profile } = useAuth();
@@ -569,6 +570,7 @@ const SalesDashboard: React.FC = () => {
         switch (activeTab) {
             case 'managers': return managerFilter !== 'all' ? renderManagerDetail() : renderManagersList();
             case 'deals': return renderDeals();
+            case 'admin': return <AdminPanel />;
             default: return renderOverview();
         }
     };
@@ -582,7 +584,14 @@ const SalesDashboard: React.FC = () => {
                     <h1 className="text-xl font-bold tracking-tight">Sales Dashboard <span className="text-blue-500">BIZGIFT</span></h1>
                 </div>
                 <div className="px-4 py-6 space-y-1 flex-1">
-                    {[{ id: 'overview', label: 'Продажи', icon: LayoutDashboard }, { id: 'managers', label: 'Менеджеры', icon: Users }, { id: 'deals', label: 'Сделки', icon: List }, { id: 'kpi', label: 'KPI Мотивация', icon: Calculator }].map((item) => (
+                    {[
+                        { id: 'overview', label: 'Продажи', icon: LayoutDashboard },
+                        { id: 'managers', label: 'Менеджеры', icon: Users },
+                        { id: 'deals', label: 'Сделки', icon: List },
+                        ...(profile?.role === 'admin' || profile?.role === 'super-admin'
+                            ? [{ id: 'admin', label: 'Админ-панель', icon: Shield }]
+                            : [])
+                    ].map((item) => (
                         <button key={item.id} onClick={() => { setActiveTab(item.id); setManagerFilter('all'); if (window.innerWidth < 768) setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50 translate-x-1' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><item.icon size={18} />{item.label}</button>
                     ))}
                 </div>
@@ -598,7 +607,7 @@ const SalesDashboard: React.FC = () => {
                 <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex items-center justify-between shadow-sm z-20 shrink-0">
                     <div className="flex items-center gap-4">
                         <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-slate-100 rounded-lg active:bg-slate-200 transition-colors"><Menu size={20} className="text-slate-600" /></button>
-                        <h2 className="text-xl font-bold text-slate-800 hidden md:block">{activeTab === 'overview' ? 'Отдел продаж: Сводка' : activeTab === 'managers' ? 'Эффективность команды' : activeTab === 'deals' ? 'Реестр сделок' : 'Расчет мотивации'}</h2>
+                        <h2 className="text-xl font-bold text-slate-800 hidden md:block">{activeTab === 'overview' ? 'Отдел продаж: Сводка' : activeTab === 'managers' ? 'Эффективность команды' : activeTab === 'deals' ? 'Реестр сделок' : 'Панель администратора'}</h2>
                         <h2 className="text-lg font-bold text-slate-800 md:hidden">BIZGIFT</h2>
                     </div>
                     <div className="flex items-center gap-3">
