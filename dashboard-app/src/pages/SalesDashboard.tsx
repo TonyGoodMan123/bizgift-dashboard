@@ -45,6 +45,11 @@ const SalesDashboard: React.FC = () => {
     const [, setIsSalaryLoading] = useState(false);
 
     useEffect(() => {
+        // Don't fetch salary data if user is not authenticated
+        if (!profile) {
+            return;
+        }
+
         const fetchSalaries = async () => {
             const currentMonth = dateFrom.substring(0, 7); // YYYY-MM
             setIsSalaryLoading(true);
@@ -58,7 +63,7 @@ const SalesDashboard: React.FC = () => {
             }
         };
         fetchSalaries();
-    }, [dateFrom]);
+    }, [dateFrom, profile]);
 
     // Data normalization for component logic
     const data = useMemo(() => {
