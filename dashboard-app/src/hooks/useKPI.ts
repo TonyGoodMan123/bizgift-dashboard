@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import type { KpiActivity, KpiParams } from '../types/api';
-import { generateMockKPI } from '../utils/mockData';
 import { api } from '../services/api';
 
 interface UseKPIResult {
@@ -8,50 +7,41 @@ interface UseKPIResult {
     isLoading: boolean;
     error: string | null;
     refetch: () => void;
+    fetchKPI: () => Promise<void>;
 }
 
 /**
  * Custom hook for fetching KPI activity data
+ * Only real API data - no mock fallback
  */
 export const useKPI = (params: KpiParams): UseKPIResult => {
     const [kpiData, setKpiData] = useState<KpiActivity[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const useMockData = import.meta.env.VITE_USE_MOCK_DATA === 'true';
-
-    const fetchKPI = async () => {
+    const fetchKPI = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
 
-            let data: KpiActivity[];
-
-            if (useMockData || !import.meta.env.VITE_API_URL) {
-                data = generateMockKPI(params);
-                await new Promise(resolve => setTimeout(resolve, 250));
-            } else {
-                data = await api.getKPI(params);
-            }
-
+            // Only use real API - no mock fallback
+            const data = await api.getKPI(params);
             setKpiData(data);
         } catch (err: any) {
             console.error('Error fetching KPI:', err);
-            setError(err.message || 'Failed to fetch KPI data');
-            setKpiData(generateMockKPI(params));
+            setError(err.message || 'Не удалось загрузить KPI данные');
+            // No mock fallback - set empty array
+            setKpiData([]);
         } finally {
             setIsLoading(false);
         }
-    };
-
-    useEffect(() => {
-        fetchKPI();
     }, [params.dateFrom, params.dateTo, params.managerId]);
 
     return {
         kpiData,
         isLoading,
         error,
-        refetch: fetchKPI
+        refetch: fetchKPI,
+        fetchKPI
     };
 };
