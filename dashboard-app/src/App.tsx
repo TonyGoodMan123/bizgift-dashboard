@@ -15,7 +15,7 @@ import AdminPanel from './components/AdminPanel';
  * - /admin → Admin Panel (user management)
  */
 const App: React.FC = () => {
-    const { user, loading } = useAuth();
+    const { user, profile, loading } = useAuth();
 
     if (loading) {
         return (

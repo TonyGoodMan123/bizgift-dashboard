@@ -13,7 +13,7 @@ interface ProtectedRouteProps {
  * Optionally restricts based on user role
  */
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children }) => {
-    const { user, profile, loading } = useAuth();
+    const { user, profile, loading, logout } = useAuth();
 
     if (loading) {
         return (

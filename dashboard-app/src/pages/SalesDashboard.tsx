@@ -3,19 +3,19 @@ import {
     Users, DollarSign, Briefcase, TrendingUp, Filter,
     LayoutDashboard, PieChart as PieIcon, List, Shield,
     Menu, ArrowRight, ShoppingCart, ArrowDown,
-    Clock, XCircle, CheckCircle, Hourglass, Wallet, Info, Coins, LogOut
+    Clock, XCircle, CheckCircle, Hourglass, Wallet, Info, Coins, LogOut, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { api } from '../services/api';
-import type { Manager, Deal, KpiActivity, SalaryData } from '../types/api';
+import type { Deal, KpiActivity, SalaryData } from '../types/api';
 import {
     CONFIG, calcManagerIncome, calcPremPercent, calcDealBonus,
     calculateStats, calculateDealsSummary, getDealCycle, getDiff,
     formatMoney, formatPercent
 } from '../utils/salaryCalc';
-import { generateData } from '../utils/mockSalesData';
+// import { generateData } from '../utils/mockSalesData'; // unused
 import { Card } from '../components/Card';
 import AdminPanel from '../components/AdminPanel';
 
@@ -42,7 +42,7 @@ const SalesDashboard: React.FC = () => {
 
     // Fetch salary data (Source of Truth for financial results)
     const [salaryData, setSalaryData] = useState<SalaryData[]>([]);
-    const [isSalaryLoading, setIsSalaryLoading] = useState(false);
+    const [, setIsSalaryLoading] = useState(false);
 
     useEffect(() => {
         const fetchSalaries = async () => {

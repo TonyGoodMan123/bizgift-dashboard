@@ -42,7 +42,7 @@ const AdminPanel: React.FC = () => {
             const q = query(collection(db, 'users'));
             const querySnapshot = await getDocs(q);
             const userList: UserProfile[] = [];
-            querySnapshot.forEach((doc) => {
+            querySnapshot.forEach((doc: import('firebase/firestore').QueryDocumentSnapshot) => {
                 userList.push({ uid: doc.id, ...doc.data() } as UserProfile);
             });
             setUsers(userList);
