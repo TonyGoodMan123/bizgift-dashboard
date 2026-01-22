@@ -36,12 +36,19 @@ const SalesDashboard: React.FC = () => {
 
     const [compareDateFrom, setCompareDateFrom] = useState('2025-10-01');
     const [compareDateTo, setCompareDateTo] = useState('2025-10-31');
+
+    // Temp comparison dates (user input before clicking Apply)
+    const [tempCompareDateFrom, setTempCompareDateFrom] = useState('2025-10-01');
+    const [tempCompareDateTo, setTempCompareDateTo] = useState('2025-10-31');
+
     const [isSidebarOpen, setSidebarOpen] = useState(true);
 
     // Apply date filter - triggers data fetch
     const applyDateFilter = () => {
         setDateFrom(tempDateFrom);
         setDateTo(tempDateTo);
+        setCompareDateFrom(tempCompareDateFrom);
+        setCompareDateTo(tempCompareDateTo);
     };
 
     // Fetch primary data
@@ -411,10 +418,24 @@ const SalesDashboard: React.FC = () => {
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4 mb-6">
                 <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период расчета:</span>
                 <div className="flex items-center gap-2 w-full md:w-auto">
-                    <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto" />
+                    <input type="date" value={tempDateFrom} onChange={(e) => setTempDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto" />
                     <span className="text-slate-400">→</span>
-                    <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto" />
+                    <input type="date" value={tempDateTo} onChange={(e) => setTempDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto" />
                 </div>
+                <button
+                    onClick={applyDateFilter}
+                    disabled={isMainLoading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                    {isMainLoading ? (
+                        <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Загрузка...
+                        </>
+                    ) : (
+                        'Применить'
+                    )}
+                </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {managersRating.map((rating) => (
@@ -443,11 +464,25 @@ const SalesDashboard: React.FC = () => {
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период сделок:</span>
                     <div className="flex items-center gap-2">
-                        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-36" />
+                        <input type="date" value={tempDateFrom} onChange={(e) => setTempDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-36" />
                         <span className="text-slate-400">→</span>
-                        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-36" />
+                        <input type="date" value={tempDateTo} onChange={(e) => setTempDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-36" />
                     </div>
                 </div>
+                <button
+                    onClick={applyDateFilter}
+                    disabled={isMainLoading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                    {isMainLoading ? (
+                        <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Загрузка...
+                        </>
+                    ) : (
+                        'Применить'
+                    )}
+                </button>
             </div>
 
             {dealsSummary && (
@@ -552,10 +587,24 @@ const SalesDashboard: React.FC = () => {
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col md:flex-row items-center gap-4 border-dashed">
                         <span className="text-sm font-semibold text-slate-500 flex items-center gap-2 min-w-max"><ArrowRight size={16} className="text-slate-400" /> Период сравнения:</span>
                         <div className="flex items-center gap-2 w-full md:w-auto">
-                            <input type="date" value={compareDateFrom} onChange={(e) => setCompareDateFrom(e.target.value)} className="border border-slate-300 bg-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto text-slate-600" />
+                            <input type="date" value={tempCompareDateFrom} onChange={(e) => setTempCompareDateFrom(e.target.value)} className="border border-slate-300 bg-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto text-slate-600" />
                             <span className="text-slate-400">→</span>
-                            <input type="date" value={compareDateTo} onChange={(e) => setCompareDateTo(e.target.value)} className="border border-slate-300 bg-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto text-slate-600" />
+                            <input type="date" value={tempCompareDateTo} onChange={(e) => setTempCompareDateTo(e.target.value)} className="border border-slate-300 bg-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto text-slate-600" />
                         </div>
+                        <button
+                            onClick={applyDateFilter}
+                            disabled={isMainLoading}
+                            className="px-4 py-2 bg-slate-600 text-white rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                            {isMainLoading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Загрузка...
+                                </>
+                            ) : (
+                                'Применить'
+                            )}
+                        </button>
                     </div>
                 </div>
 
