@@ -63,6 +63,7 @@ function rebuildKpiMonthly() {
     'margin_rub_total',
     'margin_bonus_raw',
     'fixed_base',
+    'fixed_paid',
     'salary_without_margin',
     'salary_total'
   ];
@@ -85,7 +86,8 @@ function rebuildKpiMonthly() {
   }
 
   // Лимиты и параметры мотивации
-  var FIXED_BASE        = 30000; // фикс за месяц (пока единый)
+  var FIXED_BASE        = 30000; // фикс за месяц (полный)
+  var NORM_SHIFTS       = 20.5833; // норма смен в месяц (среднее по году)
   var CALLS_CAP         = 5000;  // максимум по звонкам
   var KP_CAP            = 5000;  // максимум по КП
   var HIGH_MARGIN_CAP   = 5000;  // максимум по сделкам с маржей >=35%
@@ -212,9 +214,11 @@ function rebuildKpiMonthly() {
 
     var flexCapped = Math.min(flexCapByItems, FLEX_CAP);
 
-    // --- 5. Итоговая ЗП ---
+    // --- 5. Итоговая ЗП (пропорционально отработанным сменам) ---
     var fixedBase          = FIXED_BASE;
-    var salaryWithoutMargin= fixedBase + flexCapped;
+    var fixDayRate         = FIXED_BASE / NORM_SHIFTS;  // ≈ 1457.49 ₽ за смену
+    var fixedPaid          = m.shifts_count * fixDayRate; // оплата по факту смен
+    var salaryWithoutMargin= fixedPaid + flexCapped;
     var salaryTotal        = salaryWithoutMargin + m.margin_bonus_raw;
 
     out.push([
@@ -255,6 +259,7 @@ function rebuildKpiMonthly() {
       m.margin_rub_total,
       m.margin_bonus_raw,
       fixedBase,
+      fixedPaid,
       salaryWithoutMargin,
       salaryTotal
     ]);

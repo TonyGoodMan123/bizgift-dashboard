@@ -365,6 +365,7 @@ function getSalaryData(params) {
         flex_kpi_raw_total: Number(row[idx.flex_kpi_raw_total] || 0),
         flex_kpi_capped_total: Number(row[idx.flex_kpi_capped_total] || 0),
         fixed_base: Number(row[idx.fixed_base] || 0),
+        fixed_paid: Number(row[idx.fixed_paid] || 0),
         salary_without_margin: Number(row[idx.salary_without_margin] || 0),
         salary_total: Number(row[idx.salary_total] || 0)
       };
