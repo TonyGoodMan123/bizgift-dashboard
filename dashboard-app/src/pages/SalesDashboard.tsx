@@ -56,7 +56,22 @@ const SalesDashboard: React.FC = () => {
 
     // Get today's date for max date restriction (YYYY-MM-DD format)
     const today = new Date().toISOString().split('T')[0];
-    console.log('DEBUG: today value for max date:', today);
+
+    // Format date to DD.MM.YYYY HH:MM format
+    const formatDateTime = (isoDate: string | null): string => {
+        if (!isoDate) return '-';
+        try {
+            const date = new Date(isoDate);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}.${month}.${year} ${hours}:${minutes}`;
+        } catch {
+            return isoDate;
+        }
+    };
 
     // Apply date filter - triggers data fetch
     const applyDateFilter = () => {
@@ -124,9 +139,9 @@ const SalesDashboard: React.FC = () => {
     const getFilteredDeals = (deals: Deal[], start: string, end: string) => {
         return deals.filter(d => {
             const managerMatch = managerFilter === 'all' || d.manager_id === managerFilter;
-            // Include the entire end date by adding end of day (23:59:59)
-            const endOfDay = end + 'T23:59:59';
-            const dateMatch = d.created_at >= start && d.created_at <= endOfDay;
+            // Compare only date parts (YYYY-MM-DD) for proper filtering
+            const dealDate = d.created_at.split('T')[0]; // Extract YYYY-MM-DD
+            const dateMatch = dealDate >= start && dealDate <= end;
             return managerMatch && dateMatch;
         });
     };
@@ -598,7 +613,8 @@ const SalesDashboard: React.FC = () => {
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                                 <tr>
-                                    <th className="p-4 font-medium">Дата / Название</th>
+                                    <th className="p-4 font-medium">Дата</th>
+                                    <th className="p-4 font-medium">Название</th>
                                     <th className="p-4 font-medium">Менеджер</th>
                                     <th className="p-4 font-medium">Статус</th>
                                     <th className="p-4 font-medium text-right">Сумма продажи</th>
@@ -620,7 +636,8 @@ const SalesDashboard: React.FC = () => {
 
                                     return (
                                         <tr key={deal.deal_id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="p-4"><div className="font-medium text-slate-800">{deal.deal_name}</div><div className="text-slate-500 text-xs">{deal.created_at}</div></td>
+                                            <td className="p-4 text-slate-500 text-sm whitespace-nowrap">{formatDateTime(deal.created_at)}</td>
+                                            <td className="p-4 font-medium text-slate-800">{deal.deal_name}</td>
                                             <td className="p-4 text-slate-600 flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${data?.managers.find(m => m.manager_id === deal.manager_id)?.avatar_color || 'bg-slate-400'}`} />{deal.manager_name}</td>
                                             <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${deal.stage === 'Сделка успешна' ? 'bg-green-100 text-green-700' : deal.stage === 'Провал' ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'}`}>{deal.stage}</span></td>
                                             <td className="p-4 text-right text-slate-700 font-medium">{formatMoney(deal.amount)}</td>
