@@ -134,7 +134,12 @@ function getDealsData(params) {
   if (stageConfigResult.__error) return stageConfigResult.__error; // FIX: Handle stage config errors
   
   var dateFrom = params.dateFrom ? new Date(params.dateFrom) : null;
-  var dateTo = params.dateTo ? new Date(params.dateTo) : null;
+  // FIX: Include entire end day by setting time to 23:59:59.999
+  var dateTo = null;
+  if (params.dateTo) {
+    dateTo = new Date(params.dateTo);
+    dateTo.setHours(23, 59, 59, 999);
+  }
   var managerId = params.managerId && params.managerId !== 'all' ? Number(params.managerId) : null;
   
   var deals = [];
@@ -163,7 +168,10 @@ function getDealsData(params) {
       manager_name: String(row[idx.assigned_by_name] || ''),
       stage: stageName,
       created_at: createdAt.toISOString(),
-      closed_at: (sConf && sConf.isWon && row[idx.payment_date]) ? new Date(row[idx.payment_date]).toISOString() : null,
+      // FIX: Use final_payment_date for closed_at to calculate correct deal cycle
+      closed_at: (sConf && sConf.isWon) ? 
+        (row[idx.final_payment_date] ? new Date(row[idx.final_payment_date]).toISOString() : 
+         (row[idx.payment_date] ? new Date(row[idx.payment_date]).toISOString() : null)) : null,
       lost_at: (sConf && sConf.isLose && row[idx.date_modify]) ? new Date(row[idx.date_modify]).toISOString() : null,
       amount: Number(row[idx.sale_amount] || 0),
       cost: Number(row[idx.purchase_amount] || 0),

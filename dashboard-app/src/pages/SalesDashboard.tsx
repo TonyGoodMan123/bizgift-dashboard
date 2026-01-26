@@ -56,6 +56,7 @@ const SalesDashboard: React.FC = () => {
 
     // Get today's date for max date restriction (YYYY-MM-DD format)
     const today = new Date().toISOString().split('T')[0];
+    console.log('DEBUG: today value for max date:', today);
 
     // Apply date filter - triggers data fetch
     const applyDateFilter = () => {
