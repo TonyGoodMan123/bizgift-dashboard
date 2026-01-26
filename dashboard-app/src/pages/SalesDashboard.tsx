@@ -181,19 +181,16 @@ const SalesDashboard: React.FC = () => {
             if (backendSalary) {
                 return {
                     ...income,
-                    fix: backendSalary.salary_fixed,
+                    fix: backendSalary.fixed_paid, // Пропорционально сменам
+                    fixDetails: {
+                        ...income.fixDetails,
+                        workedDays: backendSalary.shifts_count
+                    },
                     kpi: {
                         ...income.kpi,
-                        total: backendSalary.kpi_calls_bonus + backendSalary.kpi_offers_bonus + backendSalary.kpi_conversion_bonus,
-                        details: {
-                            ...income.kpi.details,
-                            callsBonus: backendSalary.kpi_calls_bonus,
-                            offersBonus: backendSalary.kpi_offers_bonus,
-                            convNeedsBonus: backendSalary.kpi_conversion_bonus,
-                            // Note: margin bonus is handled separately in backend structure
-                        }
+                        total: backendSalary.flex_kpi_capped_total,
                     },
-                    marginBonus: backendSalary.kpi_margin_bonus,
+                    marginBonus: backendSalary.margin_bonus_raw,
                     totalIncome: backendSalary.salary_total
                 };
             }

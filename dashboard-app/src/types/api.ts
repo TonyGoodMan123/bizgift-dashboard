@@ -88,11 +88,11 @@ export interface SalaryData {
     manager_id: number;
     manager_name: string;
     month: string;
-    salary_fixed: number;
-    kpi_calls_bonus: number;
-    kpi_offers_bonus: number;
-    kpi_conversion_bonus: number;
-    kpi_margin_bonus: number;
+    shifts_count: number;
+    fixed_base: number;
+    fixed_paid: number;
+    flex_kpi_capped_total: number;
+    margin_bonus_raw: number;
+    salary_without_margin: number;
     salary_total: number;
-    is_active: boolean;
 }
