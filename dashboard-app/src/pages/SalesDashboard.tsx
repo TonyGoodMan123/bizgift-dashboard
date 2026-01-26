@@ -3,7 +3,7 @@ import {
     Users, DollarSign, Briefcase, TrendingUp, Filter,
     LayoutDashboard, PieChart as PieIcon, List, Shield,
     Menu, ArrowRight, ShoppingCart, ArrowDown,
-    Clock, XCircle, CheckCircle, Hourglass, Wallet, Info, Coins, LogOut, AlertCircle
+    Clock, XCircle, CheckCircle, Hourglass, Wallet, Info, Coins, LogOut, AlertCircle, InboxIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,17 @@ import {
 // import { generateData } from '../utils/mockSalesData'; // unused
 import { Card } from '../components/Card';
 import AdminPanel from '../components/AdminPanel';
+
+// Empty State Component
+const EmptyState: React.FC<{ title: string; message: string; icon?: React.ReactNode }> = ({ title, message, icon }) => (
+    <div className="flex flex-col items-center justify-center py-16 px-4">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+            {icon || <InboxIcon className="w-10 h-10 text-slate-400" />}
+        </div>
+        <h3 className="text-xl font-bold text-slate-700 mb-2">{title}</h3>
+        <p className="text-slate-500 text-center max-w-md">{message}</p>
+    </div>
+);
 
 const SalesDashboard: React.FC = () => {
     const { logout, profile } = useAuth();
@@ -42,6 +53,9 @@ const SalesDashboard: React.FC = () => {
     const [tempCompareDateTo, setTempCompareDateTo] = useState('2025-10-31');
 
     const [isSidebarOpen, setSidebarOpen] = useState(true);
+
+    // Get today's date for max date restriction (YYYY-MM-DD format)
+    const today = new Date().toISOString().split('T')[0];
 
     // Apply date filter - triggers data fetch
     const applyDateFilter = () => {
@@ -109,7 +123,9 @@ const SalesDashboard: React.FC = () => {
     const getFilteredDeals = (deals: Deal[], start: string, end: string) => {
         return deals.filter(d => {
             const managerMatch = managerFilter === 'all' || d.manager_id === managerFilter;
-            const dateMatch = d.created_at >= start && d.created_at <= end;
+            // Include the entire end date by adding end of day (23:59:59)
+            const endOfDay = end + 'T23:59:59';
+            const dateMatch = d.created_at >= start && d.created_at <= endOfDay;
             return managerMatch && dateMatch;
         });
     };
@@ -202,8 +218,7 @@ const SalesDashboard: React.FC = () => {
         );
     }
 
-    if (!data || !stats) return null;
-
+    // Don't block rendering if there's no data - show empty states instead
     const currentManager = managerFilter === 'all' ? null : managersRating.find(r => r.manager.manager_id === managerFilter);
 
     // === RENDER FUNCTIONS ===
@@ -228,9 +243,9 @@ const SalesDashboard: React.FC = () => {
                     </div>
                     <div className="flex flex-col items-end gap-2 w-full md:w-auto">
                         <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="bg-transparent border-none text-sm px-2 py-1 outline-none text-slate-600 font-medium" />
+                            <input type="date" max={today} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="bg-transparent border-none text-sm px-2 py-1 outline-none text-slate-600 font-medium" />
                             <span className="text-slate-400">-</span>
-                            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="bg-transparent border-none text-sm px-2 py-1 outline-none text-slate-600 font-medium" />
+                            <input type="date" max={today} value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="bg-transparent border-none text-sm px-2 py-1 outline-none text-slate-600 font-medium" />
                         </div>
                         <div className="text-right">
                             <p className="text-sm text-slate-500 uppercase tracking-wider font-semibold">Итого к выплате</p>
@@ -413,139 +428,269 @@ const SalesDashboard: React.FC = () => {
         );
     };
 
-    const renderManagersList = () => (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4 mb-6">
-                <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период расчета:</span>
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <input type="date" value={tempDateFrom} onChange={(e) => setTempDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto" />
-                    <span className="text-slate-400">→</span>
-                    <input type="date" value={tempDateTo} onChange={(e) => setTempDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto" />
+    const renderManagersList = () => {
+        // Check if there's no data
+        if (!data || managersRating.length === 0) {
+            return (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4 mb-6">
+                        <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период расчета:</span>
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <input type="date" max={today} value={tempDateFrom} onChange={(e) => setTempDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto" />
+                            <span className="text-slate-400">→</span>
+                            <input type="date" max={today} value={tempDateTo} onChange={(e) => setTempDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto" />
+                        </div>
+                        <button
+                            onClick={applyDateFilter}
+                            disabled={isMainLoading}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                            {isMainLoading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Загрузка...
+                                </>
+                            ) : (
+                                'Применить'
+                            )}
+                        </button>
+                    </div>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+                        <EmptyState
+                            title="Нет данных по менеджерам"
+                            message="Попробуйте выбрать другой период или проверьте настройки фильтров."
+                            icon={<Users className="w-10 h-10 text-slate-400" />}
+                        />
+                    </div>
                 </div>
-                <button
-                    onClick={applyDateFilter}
-                    disabled={isMainLoading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                    {isMainLoading ? (
-                        <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Загрузка...
-                        </>
-                    ) : (
-                        'Применить'
-                    )}
-                </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {managersRating.map((rating) => (
-                    <div key={rating.manager.manager_id} onClick={() => setManagerFilter(rating.manager.manager_id)} className="cursor-pointer bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all group">
-                        <div className="p-6 border-b border-slate-100 bg-slate-50/50 group-hover:bg-blue-50/30 transition-colors">
-                            <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-full ${rating.manager.avatar_color} flex items-center justify-center text-white font-bold text-lg shadow-sm`}>{rating.manager.manager_name.charAt(0)}</div>
-                                <div><h3 className="font-bold text-slate-800">{rating.manager.manager_name}</h3><p className="text-xs text-slate-500">На руки</p></div>
-                                <div className="ml-auto text-right"><p className="font-bold text-emerald-600 text-xl">{formatMoney(rating.totalIncome)}</p></div>
+            );
+        }
+
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4 mb-6">
+                    <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период расчета:</span>
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <input type="date" max={today} value={tempDateFrom} onChange={(e) => setTempDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto" />
+                        <span className="text-slate-400">→</span>
+                        <input type="date" max={today} value={tempDateTo} onChange={(e) => setTempDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto" />
+                    </div>
+                    <button
+                        onClick={applyDateFilter}
+                        disabled={isMainLoading}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                        {isMainLoading ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Загрузка...
+                            </>
+                        ) : (
+                            'Применить'
+                        )}
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {managersRating.map((rating) => (
+                        <div key={rating.manager.manager_id} onClick={() => setManagerFilter(rating.manager.manager_id)} className="cursor-pointer bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all group">
+                            <div className="p-6 border-b border-slate-100 bg-slate-50/50 group-hover:bg-blue-50/30 transition-colors">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-full ${rating.manager.avatar_color} flex items-center justify-center text-white font-bold text-lg shadow-sm`}>{rating.manager.manager_name.charAt(0)}</div>
+                                    <div><h3 className="font-bold text-slate-800">{rating.manager.manager_name}</h3><p className="text-xs text-slate-500">На руки</p></div>
+                                    <div className="ml-auto text-right"><p className="font-bold text-emerald-600 text-xl">{formatMoney(rating.totalIncome)}</p></div>
+                                </div>
+                            </div>
+                            <div className="p-6">
+                                <div className="flex justify-between text-sm mb-2"><span className="text-slate-500">Оклад</span><span className="font-medium">{formatMoney(rating.fix)}</span></div>
+                                <div className="flex justify-between text-sm mb-2"><span className="text-slate-500">KPI Flex</span><span className="font-medium text-indigo-600">{formatMoney(rating.kpi.total)}</span></div>
+                                <div className="flex justify-between text-sm"><span className="text-slate-500">Бонус</span><span className="font-medium text-blue-600">{formatMoney(rating.marginBonus)}</span></div>
                             </div>
                         </div>
-                        <div className="p-6">
-                            <div className="flex justify-between text-sm mb-2"><span className="text-slate-500">Оклад</span><span className="font-medium">{formatMoney(rating.fix)}</span></div>
-                            <div className="flex justify-between text-sm mb-2"><span className="text-slate-500">KPI Flex</span><span className="font-medium text-indigo-600">{formatMoney(rating.kpi.total)}</span></div>
-                            <div className="flex justify-between text-sm"><span className="text-slate-500">Бонус</span><span className="font-medium text-blue-600">{formatMoney(rating.marginBonus)}</span></div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    const renderDeals = () => {
+        // Check if there's no deals
+        if (!data || currentDeals.length === 0) {
+            return (
+                <div className="space-y-6 animate-in fade-in">
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4 justify-between">
+                        <div className="flex items-center gap-4 w-full md:w-auto">
+                            <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период сделок:</span>
+                            <div className="flex items-center gap-2">
+                                <input type="date" max={today} value={tempDateFrom} onChange={(e) => setTempDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-36" />
+                                <span className="text-slate-400">→</span>
+                                <input type="date" max={today} value={tempDateTo} onChange={(e) => setTempDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-36" />
+                            </div>
+                        </div>
+                        <button
+                            onClick={applyDateFilter}
+                            disabled={isMainLoading}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                            {isMainLoading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Загрузка...
+                                </>
+                            ) : (
+                                'Применить'
+                            )}
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+                        <EmptyState
+                            title={managerFilter === 'all' ? "Нет сделок за выбранный период" : "Нет сделок по выбранному менеджеру"}
+                            message="Попробуйте выбрать другой период или измените фильтр менеджера. Данные могут отсутствовать, если в указанном периоде не было сделок."
+                            icon={<Briefcase className="w-10 h-10 text-slate-400" />}
+                        />
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-6 animate-in fade-in">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4 justify-between">
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                        <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период сделок:</span>
+                        <div className="flex items-center gap-2">
+                            <input type="date" max={today} value={tempDateFrom} onChange={(e) => setTempDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-36" />
+                            <span className="text-slate-400">→</span>
+                            <input type="date" max={today} value={tempDateTo} onChange={(e) => setTempDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-36" />
                         </div>
                     </div>
-                ))}
-            </div>
-        </div>
-    );
+                    <button
+                        onClick={applyDateFilter}
+                        disabled={isMainLoading}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                        {isMainLoading ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Загрузка...
+                            </>
+                        ) : (
+                            'Применить'
+                        )}
+                    </button>
+                </div>
 
-    const renderDeals = () => (
-        <div className="space-y-6 animate-in fade-in">
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-4 justify-between">
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                    <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период сделок:</span>
-                    <div className="flex items-center gap-2">
-                        <input type="date" value={tempDateFrom} onChange={(e) => setTempDateFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-36" />
-                        <span className="text-slate-400">→</span>
-                        <input type="date" value={tempDateTo} onChange={(e) => setTempDateTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-36" />
+                {dealsSummary && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Выручка</p><p className="text-xl font-bold text-slate-800">{formatMoney(dealsSummary.volume)}</p></div>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Закуп</p><p className="text-xl font-bold text-slate-600">{formatMoney(dealsSummary.cost)}</p></div>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Маржа</p><p className="text-xl font-bold text-emerald-600">{formatMoney(dealsSummary.margin)}</p></div>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Ср. Маржа %</p><p className="text-xl font-bold text-slate-800">{formatPercent(dealsSummary.avgMargin / 100)}</p></div>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Бонусы (Итого)</p><p className="text-xl font-bold text-indigo-600">{formatMoney(dealsSummary.bonus)}</p></div>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Ср. цикл успех</p><p className="text-xl font-bold text-slate-800">{dealsSummary.avgCycleSuccess.toFixed(0)} дн.</p></div>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Ср. цикл провал</p><p className="text-xl font-bold text-slate-600">{dealsSummary.avgCycleFail.toFixed(0)} дн.</p></div>
+                    </div>
+                )}
+
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                <tr>
+                                    <th className="p-4 font-medium">Дата / Название</th>
+                                    <th className="p-4 font-medium">Менеджер</th>
+                                    <th className="p-4 font-medium">Статус</th>
+                                    <th className="p-4 font-medium text-right">Сумма продажи</th>
+                                    <th className="p-4 font-medium text-right">Сумма закупа</th>
+                                    <th className="p-4 font-medium text-right">Маржа ₽</th>
+                                    <th className="p-4 font-medium text-right">Маржа %</th>
+                                    <th className="p-4 font-medium text-right">Менеджер %</th>
+                                    <th className="p-4 font-medium text-right">Бонус ₽</th>
+                                    <th className="p-4 font-medium text-center">Цикл (Успех)</th>
+                                    <th className="p-4 font-medium text-center">Цикл (Отказ)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {currentDeals.slice(0, 100).map((deal) => {
+                                    const premPercent = calcPremPercent(deal.margin_percent);
+                                    const bonus = calcDealBonus(deal);
+                                    const cycleSuccess = deal.stage === 'Сделка успешна' ? getDealCycle(deal) : '-';
+                                    const cycleFail = deal.stage === 'Провал' ? getDealCycle(deal) : '-';
+
+                                    return (
+                                        <tr key={deal.deal_id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-4"><div className="font-medium text-slate-800">{deal.deal_name}</div><div className="text-slate-500 text-xs">{deal.created_at}</div></td>
+                                            <td className="p-4 text-slate-600 flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${data?.managers.find(m => m.manager_id === deal.manager_id)?.avatar_color || 'bg-slate-400'}`} />{deal.manager_name}</td>
+                                            <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${deal.stage === 'Сделка успешна' ? 'bg-green-100 text-green-700' : deal.stage === 'Провал' ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'}`}>{deal.stage}</span></td>
+                                            <td className="p-4 text-right text-slate-700 font-medium">{formatMoney(deal.amount)}</td>
+                                            <td className="p-4 text-right text-slate-500">{formatMoney(deal.cost)}</td>
+                                            <td className="p-4 text-right text-emerald-600">{formatMoney(deal.margin_value)}</td>
+                                            <td className="p-4 text-right"><span className={`${deal.margin_percent >= 0.35 ? 'text-green-600 font-bold' : 'text-slate-600'}`}>{(deal.margin_percent * 100).toFixed(1)}%</span></td>
+                                            <td className="p-4 text-right text-slate-600 font-mono">{deal.stage === 'Сделка успешна' ? formatPercent(premPercent) : '-'}</td>
+                                            <td className="p-4 text-right font-bold text-indigo-600">{deal.stage === 'Сделка успешна' ? formatMoney(bonus) : '-'}</td>
+                                            <td className="p-4 text-center text-slate-600">{cycleSuccess !== '-' ? `${cycleSuccess} дн.` : '-'}</td>
+                                            <td className="p-4 text-center text-slate-400">{cycleFail !== '-' ? `${cycleFail} дн.` : '-'}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <button
-                    onClick={applyDateFilter}
-                    disabled={isMainLoading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                    {isMainLoading ? (
-                        <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Загрузка...
-                        </>
-                    ) : (
-                        'Применить'
-                    )}
-                </button>
             </div>
-
-            {dealsSummary && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Выручка</p><p className="text-xl font-bold text-slate-800">{formatMoney(dealsSummary.volume)}</p></div>
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Закуп</p><p className="text-xl font-bold text-slate-600">{formatMoney(dealsSummary.cost)}</p></div>
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Маржа</p><p className="text-xl font-bold text-emerald-600">{formatMoney(dealsSummary.margin)}</p></div>
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Ср. Маржа %</p><p className="text-xl font-bold text-slate-800">{formatPercent(dealsSummary.avgMargin / 100)}</p></div>
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Бонусы (Итого)</p><p className="text-xl font-bold text-indigo-600">{formatMoney(dealsSummary.bonus)}</p></div>
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Ср. цикл успех</p><p className="text-xl font-bold text-slate-800">{dealsSummary.avgCycleSuccess.toFixed(0)} дн.</p></div>
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Ср. цикл провал</p><p className="text-xl font-bold text-slate-600">{dealsSummary.avgCycleFail.toFixed(0)} дн.</p></div>
-                </div>
-            )}
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                            <tr>
-                                <th className="p-4 font-medium">Дата / Название</th>
-                                <th className="p-4 font-medium">Менеджер</th>
-                                <th className="p-4 font-medium">Статус</th>
-                                <th className="p-4 font-medium text-right">Сумма продажи</th>
-                                <th className="p-4 font-medium text-right">Сумма закупа</th>
-                                <th className="p-4 font-medium text-right">Маржа ₽</th>
-                                <th className="p-4 font-medium text-right">Маржа %</th>
-                                <th className="p-4 font-medium text-right">Менеджер %</th>
-                                <th className="p-4 font-medium text-right">Бонус ₽</th>
-                                <th className="p-4 font-medium text-center">Цикл (Успех)</th>
-                                <th className="p-4 font-medium text-center">Цикл (Отказ)</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {currentDeals.slice(0, 100).map((deal) => {
-                                const premPercent = calcPremPercent(deal.margin_percent);
-                                const bonus = calcDealBonus(deal);
-                                const cycleSuccess = deal.stage === 'Сделка успешна' ? getDealCycle(deal) : '-';
-                                const cycleFail = deal.stage === 'Провал' ? getDealCycle(deal) : '-';
-
-                                return (
-                                    <tr key={deal.deal_id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="p-4"><div className="font-medium text-slate-800">{deal.deal_name}</div><div className="text-slate-500 text-xs">{deal.created_at}</div></td>
-                                        <td className="p-4 text-slate-600 flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${data?.managers.find(m => m.manager_id === deal.manager_id)?.avatar_color || 'bg-slate-400'}`} />{deal.manager_name}</td>
-                                        <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${deal.stage === 'Сделка успешна' ? 'bg-green-100 text-green-700' : deal.stage === 'Провал' ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'}`}>{deal.stage}</span></td>
-                                        <td className="p-4 text-right text-slate-700 font-medium">{formatMoney(deal.amount)}</td>
-                                        <td className="p-4 text-right text-slate-500">{formatMoney(deal.cost)}</td>
-                                        <td className="p-4 text-right text-emerald-600">{formatMoney(deal.margin_value)}</td>
-                                        <td className="p-4 text-right"><span className={`${deal.margin_percent >= 0.35 ? 'text-green-600 font-bold' : 'text-slate-600'}`}>{(deal.margin_percent * 100).toFixed(1)}%</span></td>
-                                        <td className="p-4 text-right text-slate-600 font-mono">{deal.stage === 'Сделка успешна' ? formatPercent(premPercent) : '-'}</td>
-                                        <td className="p-4 text-right font-bold text-indigo-600">{deal.stage === 'Сделка успешна' ? formatMoney(bonus) : '-'}</td>
-                                        <td className="p-4 text-center text-slate-600">{cycleSuccess !== '-' ? `${cycleSuccess} дн.` : '-'}</td>
-                                        <td className="p-4 text-center text-slate-400">{cycleFail !== '-' ? `${cycleFail} дн.` : '-'}</td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
+        );
+    };
 
     const renderOverview = () => {
+        // Check if there's no data
+        if (!stats || !data) {
+            return (
+                <div className="space-y-8 animate-in fade-in">
+                    <div className="flex flex-col xl:flex-row gap-4">
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col md:flex-row items-center gap-4">
+                            <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период отчета:</span>
+                            <div className="flex items-center gap-2 w-full md:w-auto">
+                                <input
+                                    type="date"
+                                    value={tempDateFrom}
+                                    onChange={(e) => setTempDateFrom(e.target.value)}
+                                    className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto"
+                                />
+                                <span className="text-slate-400">→</span>
+                                <input
+                                    type="date"
+                                    value={tempDateTo}
+                                    onChange={(e) => setTempDateTo(e.target.value)}
+                                    className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto"
+                                />
+                            </div>
+                            <button
+                                onClick={applyDateFilter}
+                                disabled={isMainLoading}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isMainLoading ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Загрузка...
+                                    </>
+                                ) : (
+                                    'Применить'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+                        <EmptyState
+                            title="Нет данных за выбранный период"
+                            message="Попробуйте выбрать другой период или проверьте настройки фильтров. Данные могут отсутствовать, если в указанном периоде не было сделок."
+                            icon={<TrendingUp className="w-10 h-10 text-slate-400" />}
+                        />
+                    </div>
+                </div>
+            );
+        }
+
         const maxStageCount = stats.fullFunnelStats[0]?.value || 1;
 
         return (
@@ -587,9 +732,9 @@ const SalesDashboard: React.FC = () => {
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col md:flex-row items-center gap-4 border-dashed">
                         <span className="text-sm font-semibold text-slate-500 flex items-center gap-2 min-w-max"><ArrowRight size={16} className="text-slate-400" /> Период сравнения:</span>
                         <div className="flex items-center gap-2 w-full md:w-auto">
-                            <input type="date" value={tempCompareDateFrom} onChange={(e) => setTempCompareDateFrom(e.target.value)} className="border border-slate-300 bg-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto text-slate-600" />
+                            <input type="date" max={today} value={tempCompareDateFrom} onChange={(e) => setTempCompareDateFrom(e.target.value)} className="border border-slate-300 bg-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto text-slate-600" />
                             <span className="text-slate-400">→</span>
-                            <input type="date" value={tempCompareDateTo} onChange={(e) => setTempCompareDateTo(e.target.value)} className="border border-slate-300 bg-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto text-slate-600" />
+                            <input type="date" max={today} value={tempCompareDateTo} onChange={(e) => setTempCompareDateTo(e.target.value)} className="border border-slate-300 bg-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto text-slate-600" />
                         </div>
                         <button
                             onClick={applyDateFilter}
@@ -809,3 +954,4 @@ const SalesDashboard: React.FC = () => {
 };
 
 export default SalesDashboard;
+
