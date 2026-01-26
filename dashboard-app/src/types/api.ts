@@ -40,6 +40,7 @@ export interface KpiActivity {
     offers_sent_count: number;
     needs_count: number;
     offers_agreed_count: number;
+    shifts_count: number;
 }
 
 export interface Manager {

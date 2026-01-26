@@ -26,6 +26,12 @@ function onOpen() {
 
     .addSeparator()
 
+    // ---- KPI / АНАЛИТИКА ----
+    .addItem('📊 Пересчитать KPI Daily', 'rebuildKpiDaily')
+    .addItem('📊 Пересчитать KPI Monthly', 'rebuildKpiMonthly')
+
+    .addSeparator()
+
     // ---- СЛУЖЕБНОЕ ----
     .addItem('Установить триггеры Cron', 'installTriggers')
 

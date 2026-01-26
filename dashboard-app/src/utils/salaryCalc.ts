@@ -4,7 +4,7 @@ import type { Deal, Manager, KpiActivity, ManagerIncome, DashboardStats, DealSta
 
 export const CONFIG = {
     FIX_SALARY_BASE: 30000,
-    NORM_WORKING_DAYS: 20,
+    NORM_WORKING_DAYS: 20.5833,
     KPI_MAX_FLEX: 25000,
     KPI_LIMIT_PER_BLOCK: 5000,
     BONUS_PER_CALL: 5,
@@ -62,13 +62,11 @@ export function calcDealBonus(deal: Deal): number {
 export function calcManagerIncome(
     manager: Manager,
     deals: Deal[],
-    activity: KpiActivity | undefined | null,
-    dateFrom: string,
-    dateTo: string
+    activity: KpiActivity | undefined | null
 ): ManagerIncome {
-    // 1. FIX SALARY
-    const totalWorkingDaysInPeriod = getWorkingDays(dateFrom, dateTo);
-    const workedDays = Math.floor(totalWorkingDaysInPeriod * 0.9);
+    // 1. FIX SALARY (Based on shifts_count from backend)
+    // Worked shifts = number of unique days with at least 1 call
+    const workedDays = activity?.shifts_count || 0;
 
     const dailyRate = CONFIG.FIX_SALARY_BASE / CONFIG.NORM_WORKING_DAYS;
     const calculatedFix = Math.round(dailyRate * workedDays);
@@ -79,7 +77,8 @@ export function calcManagerIncome(
         calls_30_sec_count: 0,
         offers_sent_count: 0,
         needs_count: 0,
-        offers_agreed_count: 0
+        offers_agreed_count: 0,
+        shifts_count: 0
     };
 
     const callsBonusRaw = safeActivity.calls_30_sec_count * CONFIG.BONUS_PER_CALL;

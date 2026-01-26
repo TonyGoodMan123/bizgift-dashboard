@@ -174,7 +174,7 @@ const SalesDashboard: React.FC = () => {
     const managersRating = useMemo(() => {
         if (!data) return [];
         return data.managers.map(m => {
-            const income = calcManagerIncome(m as any, currentDeals.filter(d => d.manager_id === m.manager_id), data.kpi[m.manager_id], dateFrom, dateTo);
+            const income = calcManagerIncome(m as any, currentDeals.filter(d => d.manager_id === m.manager_id), data.kpi[m.manager_id]);
 
             // OVERRIDE WITH BACKEND SALARY IF AVAILABLE (ZERO DEVIATION PRINCIPLE)
             const backendSalary = salaryData.find(s => s.manager_id === m.manager_id);

@@ -262,10 +262,18 @@ function getKpiData(params) {
         calls_30_sec_count: 0,
         offers_sent_count: 0,
         needs_count: 0,
-        offers_agreed_count: 0
+        offers_agreed_count: 0,
+        shifts_count: 0,
+        _unique_days: {} // Временный объект для подсчета уникальных дней
       };
     }
     
+    var dateKey = formatDateKey(rowDate);
+    if (!kpiMap[mId]._unique_days[dateKey]) {
+      kpiMap[mId]._unique_days[dateKey] = true;
+      kpiMap[mId].shifts_count += 1;
+    }
+
     kpiMap[mId].calls_30_sec_count += Number(row[idx.calls_30s_plus] || 0);
     kpiMap[mId].offers_sent_count += Number(row[idx.kp_sent_count] || 0);
   }
