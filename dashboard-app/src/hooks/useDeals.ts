@@ -6,7 +6,7 @@ interface UseDealsResult {
     deals: Deal[];
     isLoading: boolean;
     error: string | null;
-    refetch: () => void;
+    refetch: () => Promise<void>;
     fetchDeals: () => Promise<void>;
 }
 

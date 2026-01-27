@@ -9,6 +9,8 @@ import type {
     DealsParams,
     KpiParams,
     SalaryData,
+    Call,
+    CallsParams
 } from '../types/api';
 
 class BizGiftAPI {
@@ -130,8 +132,27 @@ class BizGiftAPI {
     /**
      * Get salary data for a specific month
      */
+    /**
+     * Get salary data for a specific month
+     */
     async getSalary(params: { month: string; managerId?: number | 'all' }): Promise<SalaryData[]> {
         return this.fetch<SalaryData[]>('salary', params);
+    }
+
+    /**
+     * Get calls with filtering
+     */
+    async getCalls(params: CallsParams): Promise<Call[]> {
+        const queryParams: Record<string, any> = {
+            dateFrom: params.dateFrom,
+            dateTo: params.dateTo,
+        };
+
+        if (params.managerId && params.managerId !== 'all') {
+            queryParams.managerId = params.managerId;
+        }
+
+        return this.fetch<Call[]>('calls', queryParams);
     }
 }
 

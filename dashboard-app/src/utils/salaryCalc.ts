@@ -178,9 +178,11 @@ export function calculateStats(deals: Deal[]): DashboardStats {
 
     const getDiffDays = (start: string, end: string | null) => {
         if (!end) return 0;
-        const d1 = new Date(start).getTime();
-        const d2 = new Date(end).getTime();
-        return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+        const d1 = new Date(new Date(start).toDateString());
+        const d2 = new Date(new Date(end).toDateString());
+        const diffTime = d2.getTime() - d1.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return Math.max(1, diffDays + 1); // Same day = 1 day
     };
 
     const avgCycleWon = successful.length
@@ -212,9 +214,11 @@ export function calculateDealsSummary(deals: Deal[]): DealsSummary {
 
     const getDiffDays = (start: string, end: string | null) => {
         if (!end) return 0;
-        const d1 = new Date(start).getTime();
-        const d2 = new Date(end).getTime();
-        return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+        const d1 = new Date(new Date(start).toDateString());
+        const d2 = new Date(new Date(end).toDateString());
+        const diffTime = d2.getTime() - d1.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return Math.max(1, diffDays + 1);
     };
 
     const avgCycleSuccess = successful.length
@@ -230,17 +234,15 @@ export function calculateDealsSummary(deals: Deal[]): DealsSummary {
 
 // Get deal cycle days
 export function getDealCycle(deal: Deal): number | string {
-    if (deal.closed_at) {
-        const start = new Date(deal.created_at).getTime();
-        const end = new Date(deal.closed_at).getTime();
-        return Math.floor((end - start) / (1000 * 60 * 60 * 24));
-    }
-    if (deal.lost_at) {
-        const start = new Date(deal.created_at).getTime();
-        const end = new Date(deal.lost_at).getTime();
-        return Math.floor((end - start) / (1000 * 60 * 60 * 24));
-    }
-    return '-';
+    const end = deal.closed_at || deal.lost_at;
+    if (!end) return '-';
+
+    const d1 = new Date(new Date(deal.created_at).toDateString());
+    const d2 = new Date(new Date(end).toDateString());
+    const diffTime = d2.getTime() - d1.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return Math.max(1, diffDays + 1);
 }
 
 // Get difference percentage

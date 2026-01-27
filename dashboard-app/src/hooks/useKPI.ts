@@ -6,7 +6,7 @@ interface UseKPIResult {
     kpiData: KpiActivity[];
     isLoading: boolean;
     error: string | null;
-    refetch: () => void;
+    refetch: () => Promise<void>;
     fetchKPI: () => Promise<void>;
 }
 

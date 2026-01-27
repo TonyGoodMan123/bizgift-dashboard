@@ -3,13 +3,13 @@ import {
     Users, DollarSign, Briefcase, TrendingUp, Filter,
     LayoutDashboard, PieChart as PieIcon, List, Shield,
     Menu, ArrowRight, ShoppingCart, ArrowDown,
-    Clock, XCircle, CheckCircle, Hourglass, Wallet, Info, Coins, LogOut, AlertCircle, InboxIcon
+    Clock, XCircle, CheckCircle, Hourglass, Wallet, Info, Coins, LogOut, AlertCircle, InboxIcon, PhoneCall
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext.demo';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { api } from '../services/api';
-import type { Deal, KpiActivity, SalaryData } from '../types/api';
+import { useCalls } from '../hooks/useCalls';
+import type { Deal, KpiActivity } from '../types/api';
 import {
     CONFIG, calcManagerIncome, calcPremPercent, calcDealBonus,
     calculateStats, calculateDealsSummary, getDealCycle, getDiff,
@@ -18,6 +18,7 @@ import {
 // import { generateData } from '../utils/mockSalesData'; // unused
 import { Card } from '../components/Card';
 import AdminPanel from '../components/AdminPanel';
+import { useManagerVisibility } from '../hooks/useManagerVisibility';
 
 // Empty State Component
 const EmptyState: React.FC<{ title: string; message: string; icon?: React.ReactNode }> = ({ title, message, icon }) => (
@@ -37,25 +38,41 @@ const SalesDashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const [managerFilter, setManagerFilter] = useState<number | 'all'>('all');
 
+    // Helper to get YYYY-MM-DD in local time
+    const formatDateLocal = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // Get dates for initialization
+    const now = new Date();
+    const today = formatDateLocal(now);
+    const firstDayOfMonth = formatDateLocal(new Date(now.getFullYear(), now.getMonth(), 1));
+
+    // Previous month dates for comparison
+    const firstDayPrevMonth = formatDateLocal(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+    const lastDayPrevMonth = formatDateLocal(new Date(now.getFullYear(), now.getMonth(), 0));
+
     // Applied dates (used for data fetching)
-    const [dateFrom, setDateFrom] = useState('2025-11-01');
-    const [dateTo, setDateTo] = useState('2025-11-30');
+    const [dateFrom, setDateFrom] = useState(firstDayOfMonth);
+    const [dateTo, setDateTo] = useState(today);
 
     // Temp dates (user input before clicking Apply)
-    const [tempDateFrom, setTempDateFrom] = useState('2025-11-01');
-    const [tempDateTo, setTempDateTo] = useState('2025-11-30');
+    const [tempDateFrom, setTempDateFrom] = useState(firstDayOfMonth);
+    const [tempDateTo, setTempDateTo] = useState(today);
 
-    const [compareDateFrom, setCompareDateFrom] = useState('2025-10-01');
-    const [compareDateTo, setCompareDateTo] = useState('2025-10-31');
+    const [compareDateFrom, setCompareDateFrom] = useState(firstDayPrevMonth);
+    const [compareDateTo, setCompareDateTo] = useState(lastDayPrevMonth);
 
     // Temp comparison dates (user input before clicking Apply)
-    const [tempCompareDateFrom, setTempCompareDateFrom] = useState('2025-10-01');
-    const [tempCompareDateTo, setTempCompareDateTo] = useState('2025-10-31');
+    const [tempCompareDateFrom, setTempCompareDateFrom] = useState(firstDayPrevMonth);
+    const [tempCompareDateTo, setTempCompareDateTo] = useState(lastDayPrevMonth);
 
     const [isSidebarOpen, setSidebarOpen] = useState(true);
-
-    // Get today's date for max date restriction (YYYY-MM-DD format)
-    const today = new Date().toISOString().split('T')[0];
+    const [lastUpdatedAt, setLastUpdatedAt] = useState<string>(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Format date to DD.MM.YYYY HH:MM format
     const formatDateTime = (isoDate: string | null): string => {
@@ -81,60 +98,94 @@ const SalesDashboard: React.FC = () => {
         setCompareDateTo(tempCompareDateTo);
     };
 
+    // Fetch calls data for activity tab
+    const { calls: fetchedCalls, isLoading: isCallsLoading, error: callsError } = useCalls({
+        dateFrom,
+        dateTo,
+        managerId: managerFilter
+    });
+
+    // Get visible manager IDs from settings
+    const visibleManagerIds = useManagerVisibility();
+
     // Fetch primary data
     const {
         deals: fetchedDeals,
         managers: fetchedManagers,
         kpiData: fetchedKpi,
+        salaryData: fetchedSalary,
         isLoading: isMainLoading,
-        error: mainError
-    } = useDashboardData({ from: dateFrom, to: dateTo });
+        error: mainError,
+        refreshAll
+    } = useDashboardData({ from: dateFrom, to: dateTo, managerId: managerFilter });
 
-    // Fetch salary data (Source of Truth for financial results)
-    const [salaryData, setSalaryData] = useState<SalaryData[]>([]);
-    const [, setIsSalaryLoading] = useState(false);
-
-    useEffect(() => {
-        // Don't fetch salary data if user is not authenticated OR API is not configured
-        if (!profile || !import.meta.env.VITE_API_URL) {
-            return;
+    const handleRefresh = async () => {
+        try {
+            setIsRefreshing(true);
+            await refreshAll();
+            setLastUpdatedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        } catch (err) {
+            console.error('Refresh failed:', err);
+            alert('Ошибка при обновлении данных. Проверьте консоль для деталей.');
+        } finally {
+            setIsRefreshing(false);
         }
+    };
 
-        const fetchSalaries = async () => {
-            const currentMonth = dateFrom.substring(0, 7); // YYYY-MM
-            setIsSalaryLoading(true);
-            try {
-                const results = await api.getSalary({ month: currentMonth });
-                setSalaryData(results);
-            } catch (err) {
-                console.error('Failed to fetch salary data:', err);
-                // Don't crash on API errors in demo mode
-            } finally {
-                setIsSalaryLoading(false);
-            }
-        };
-        fetchSalaries();
-    }, [dateFrom, profile]);
+    // Apply manager visibility filter
+    const visibleManagers = useMemo(() => {
+        if (!visibleManagerIds.isConfigured || !fetchedManagers || fetchedManagers.length === 0) {
+            return fetchedManagers || [];
+        }
+        return fetchedManagers.filter(m => visibleManagerIds.visibleIds.has(Number(m.manager_id)));
+    }, [fetchedManagers, visibleManagerIds]);
+
+    // Filter deals to only include deals from visible managers
+    const visibleDeals = useMemo(() => {
+        if (!visibleManagerIds.isConfigured || !fetchedDeals || fetchedDeals.length === 0) {
+            return fetchedDeals || [];
+        }
+        return fetchedDeals.filter(d => visibleManagerIds.visibleIds.has(Number(d.manager_id)));
+    }, [fetchedDeals, visibleManagerIds]);
+
+    // Salary data is now managed by useDashboardData hook
+    const salaryData = fetchedSalary;
 
     // Data normalization for component logic
     const data = useMemo(() => {
-        if (isMainLoading || !fetchedManagers.length) return null;
+        if (isMainLoading || !visibleManagers.length) return null;
 
         // Convert kpiData from array to Record<number, KpiActivity>
         const kpiMap: Record<number, KpiActivity> = {};
         fetchedKpi.forEach(k => {
-            kpiMap[k.manager_id] = k;
+            // Only include KPI data for visible managers
+            if (!visibleManagerIds.isConfigured || visibleManagerIds.visibleIds.has(Number(k.manager_id))) {
+                kpiMap[Number(k.manager_id)] = k;
+            }
         });
 
         return {
-            managers: fetchedManagers.map(m => ({
+            managers: visibleManagers.map(m => ({
                 ...m,
                 avatar_color: m.avatar_color || 'bg-blue-500' // Ensure fallback
             })),
-            deals: fetchedDeals,
+            deals: visibleDeals,
             kpi: kpiMap
         };
-    }, [fetchedManagers, fetchedDeals, fetchedKpi, isMainLoading]);
+    }, [visibleManagers, visibleDeals, fetchedKpi, isMainLoading, visibleManagerIds]);
+
+    const visibleCalls = useMemo(() => {
+        if (!fetchedCalls) return [];
+        if (!visibleManagerIds.isConfigured) return fetchedCalls;
+        return fetchedCalls.filter(c => visibleManagerIds.visibleIds.has(Number(c.manager_id)));
+    }, [fetchedCalls, visibleManagerIds]);
+
+    // Format duration seconds to min:sec
+    const formatDuration = (seconds: number): string => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${String(secs).padStart(2, '0')}`;
+    };
 
     const getFilteredDeals = (deals: Deal[], start: string, end: string) => {
         return deals.filter(d => {
@@ -203,6 +254,16 @@ const SalesDashboard: React.FC = () => {
         return calculateDealsSummary(currentDeals);
     }, [currentDeals]);
 
+    // Cleanup: If current filter points to a hidden manager, reset it to 'all'
+    useEffect(() => {
+        if (managerFilter !== 'all' && data) {
+            const isVisible = data.managers.some(m => m.manager_id === managerFilter);
+            if (!isVisible) {
+                setManagerFilter('all');
+            }
+        }
+    }, [data, managerFilter]);
+
     const handleLogout = async () => { await logout(); navigate('/'); };
 
     if (isMainLoading && !data) {
@@ -254,11 +315,21 @@ const SalesDashboard: React.FC = () => {
                             <p className="text-slate-500">Расчетный лист</p>
                         </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2 w-full md:w-auto">
-                        <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                            <input type="date" max={today} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="bg-transparent border-none text-sm px-2 py-1 outline-none text-slate-600 font-medium" />
-                            <span className="text-slate-400">-</span>
-                            <input type="date" max={today} value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="bg-transparent border-none text-sm px-2 py-1 outline-none text-slate-600 font-medium" />
+                    <div className="flex flex-col items-end gap-3 w-full md:w-auto">
+                        <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                            <span className="text-xs font-semibold text-slate-500 px-1">Период:</span>
+                            <div className="flex items-center gap-1">
+                                <input type="date" max={today} value={tempDateFrom} onChange={(e) => setTempDateFrom(e.target.value)} className="bg-white border border-slate-200 rounded-lg text-xs px-2 py-1.5 outline-none text-slate-600 font-medium focus:ring-1 focus:ring-blue-500" />
+                                <span className="text-slate-400">-</span>
+                                <input type="date" max={today} value={tempDateTo} onChange={(e) => setTempDateTo(e.target.value)} className="bg-white border border-slate-200 rounded-lg text-xs px-2 py-1.5 outline-none text-slate-600 font-medium focus:ring-1 focus:ring-blue-500" />
+                            </div>
+                            <button
+                                onClick={applyDateFilter}
+                                disabled={isMainLoading}
+                                className="ml-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            >
+                                {isMainLoading ? '...' : 'Ок'}
+                            </button>
                         </div>
                         <div className="text-right">
                             <p className="text-sm text-slate-500 uppercase tracking-wider font-semibold">Итого к выплате</p>
@@ -635,7 +706,17 @@ const SalesDashboard: React.FC = () => {
                                         <tr key={deal.deal_id} className="hover:bg-slate-50 transition-colors">
                                             <td className="p-4 text-slate-500 text-sm whitespace-nowrap">{formatDateTime(deal.created_at)}</td>
                                             <td className="p-4 font-medium text-slate-800">{deal.deal_name}</td>
-                                            <td className="p-4 text-slate-600 flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${data?.managers.find(m => m.manager_id === deal.manager_id)?.avatar_color || 'bg-slate-400'}`} />{deal.manager_name}</td>
+                                            <td className="p-4 text-slate-600 flex items-center gap-2">
+                                                {(() => {
+                                                    const m = data?.managers.find(m => Number(m.manager_id) === Number(deal.manager_id));
+                                                    return (
+                                                        <>
+                                                            <div className={`w-2 h-2 rounded-full ${m?.avatar_color || 'bg-slate-400'}`} />
+                                                            {m?.manager_name || deal.manager_name || '—'}
+                                                        </>
+                                                    );
+                                                })()}
+                                            </td>
                                             <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${deal.stage === 'Сделка успешна' ? 'bg-green-100 text-green-700' : deal.stage === 'Провал' ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'}`}>{deal.stage}</span></td>
                                             <td className="p-4 text-right text-slate-700 font-medium">{formatMoney(deal.amount)}</td>
                                             <td className="p-4 text-right text-slate-500">{formatMoney(deal.cost)}</td>
@@ -909,10 +990,136 @@ const SalesDashboard: React.FC = () => {
         );
     };
 
+    const renderActivity = () => {
+        const totalDuration = visibleCalls.reduce((sum, c) => sum + Number(c.duration || 0), 0);
+        const avgDuration = visibleCalls.length > 0 ? totalDuration / visibleCalls.length : 0;
+
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                {/* Error State */}
+                {callsError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl flex items-center gap-3">
+                        <AlertCircle size={20} />
+                        <div>
+                            <p className="font-bold">Ошибка загрузки звонков</p>
+                            <p className="text-sm opacity-90">{callsError}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Header with filters */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800">Реестр звонков</h2>
+                        <p className="text-slate-500">Детализация активности по менеджерам</p>
+                    </div>
+                </div>
+
+                {/* Filters Section */}
+                <div className="flex flex-col xl:flex-row gap-4">
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col md:flex-row items-center gap-4">
+                        <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период отчета:</span>
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <input
+                                type="date"
+                                max={today}
+                                value={tempDateFrom}
+                                onChange={(e) => setTempDateFrom(e.target.value)}
+                                className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto"
+                            />
+                            <span className="text-slate-400">→</span>
+                            <input
+                                type="date"
+                                max={today}
+                                value={tempDateTo}
+                                onChange={(e) => setTempDateTo(e.target.value)}
+                                className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto"
+                            />
+                        </div>
+                        <button
+                            onClick={applyDateFilter}
+                            disabled={isCallsLoading || isMainLoading}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                            {isCallsLoading || isMainLoading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Загрузка...
+                                </>
+                            ) : (
+                                'Применить'
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Stats Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card title="ВСЕГО ЗВОНКОВ" value={visibleCalls.length.toString()} icon={PhoneCall} />
+                    <Card title="ОБЩАЯ ДЛИТЕЛЬНОСТЬ" value={formatDuration(totalDuration)} icon={Clock} />
+                    <Card title="СРЕДНЯЯ ДЛИТЕЛЬНОСТЬ" value={formatDuration(Math.round(avgDuration))} icon={Hourglass} />
+                    <Card title="ЗВОНКОВ > 30 СЕК" value={visibleCalls.filter(c => Number(c.duration || 0) >= 30).length.toString()} icon={TrendingUp} />
+                </div>
+
+                {/* Table */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                <tr>
+                                    <th className="p-4 font-medium">Дата и время</th>
+                                    <th className="p-4 font-medium">Менеджер</th>
+                                    <th className="p-4 font-medium">Направление</th>
+                                    <th className="p-4 font-medium">Длительность</th>
+                                    <th className="p-4 font-medium">Результат</th>
+                                    <th className="p-4 font-medium">Номер телефона</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {isCallsLoading ? (
+                                    <tr><td colSpan={6} className="p-12 text-center text-slate-400">Загрузка звонков...</td></tr>
+                                ) : visibleCalls.length === 0 ? (
+                                    <tr><td colSpan={6} className="p-12 text-center text-slate-400">Звонков не найдено</td></tr>
+                                ) : (
+                                    visibleCalls.map((call) => {
+                                        const manager = data?.managers.find(m => Number(m.manager_id) === Number(call.manager_id));
+                                        return (
+                                            <tr key={call.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="p-4 text-slate-500 text-sm whitespace-nowrap">{formatDateTime(call.date)}</td>
+                                                <td className="p-4 text-slate-600 flex items-center gap-2">
+                                                    <div className={`w-2 h-2 rounded-full ${manager?.avatar_color || 'bg-slate-400'}`} />
+                                                    {manager?.manager_name || call.manager_name}
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter ${call.type === 'incoming' ? 'bg-blue-100 text-blue-700' :
+                                                        call.type === 'outgoing' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-700'
+                                                        }`}>
+                                                        {call.type === 'incoming' ? 'Входящий' : call.type === 'outgoing' ? 'Исходящий' : 'Другой'}
+                                                    </span>
+                                                </td>
+                                                <td className={`p-4 font-mono font-medium ${Number(call.duration || 0) >= 30 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                    {formatDuration(Number(call.duration || 0))}
+                                                </td>
+                                                <td className="p-4 text-sm text-slate-600">{call.result || '—'}</td>
+                                                <td className="p-4 text-sm text-slate-500 font-mono">{call.phone}</td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderContent = () => {
         switch (activeTab) {
+            case 'overview': return managerFilter !== 'all' ? renderManagerDetail() : renderOverview();
             case 'managers': return managerFilter !== 'all' ? renderManagerDetail() : renderManagersList();
             case 'deals': return renderDeals();
+            case 'activity': return renderActivity();
             case 'admin': return <AdminPanel />;
             default: return renderOverview();
         }
@@ -931,6 +1138,7 @@ const SalesDashboard: React.FC = () => {
                         { id: 'overview', label: 'Продажи', icon: LayoutDashboard },
                         { id: 'managers', label: 'Менеджеры', icon: Users },
                         { id: 'deals', label: 'Сделки', icon: List },
+                        { id: 'activity', label: 'Активность', icon: PhoneCall },
                         ...(profile?.role === 'admin' || profile?.role === 'super-admin'
                             ? [{ id: 'admin', label: 'Админ-панель', icon: Shield }]
                             : [])
@@ -950,10 +1158,42 @@ const SalesDashboard: React.FC = () => {
                 <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex items-center justify-between shadow-sm z-20 shrink-0">
                     <div className="flex items-center gap-4">
                         <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-slate-100 rounded-lg active:bg-slate-200 transition-colors"><Menu size={20} className="text-slate-600" /></button>
-                        <h2 className="text-xl font-bold text-slate-800 hidden md:block">{activeTab === 'overview' ? 'Отдел продаж: Сводка' : activeTab === 'managers' ? 'Эффективность команды' : activeTab === 'deals' ? 'Реестр сделок' : 'Панель администратора'}</h2>
+                        <h2 className="text-xl font-bold text-slate-800 hidden md:block">
+                            {activeTab === 'overview' ? 'Отдел продаж: Сводка' :
+                                activeTab === 'managers' ? 'Эффективность команды' :
+                                    activeTab === 'deals' ? 'Реестр сделок' :
+                                        activeTab === 'activity' ? 'Реестр звонков' :
+                                            'Панель администратора'}
+                        </h2>
                         <h2 className="text-lg font-bold text-slate-800 md:hidden">BIZGIFT</h2>
                     </div>
                     <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-end mr-2 hidden sm:flex">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Обновлено</span>
+                            <span className="text-xs font-medium text-slate-600">{lastUpdatedAt}</span>
+                        </div>
+
+                        <button
+                            onClick={handleRefresh}
+                            disabled={isRefreshing || isMainLoading}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isRefreshing
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-blue-50 text-blue-600 hover:bg-blue-100 active:scale-95'
+                                }`}
+                        >
+                            {isRefreshing ? (
+                                <>
+                                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                    <span>Обновляю...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <TrendingUp size={14} />
+                                    <span>Обновить данные</span>
+                                </>
+                            )}
+                        </button>
+
                         <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1 pr-3">
                             <div className="bg-white p-1.5 rounded-md shadow-sm"><Filter size={14} className="text-slate-500" /></div>
                             <select className="bg-transparent text-sm font-medium text-slate-600 outline-none cursor-pointer max-w-[100px] md:max-w-none" value={managerFilter} onChange={(e) => setManagerFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}>

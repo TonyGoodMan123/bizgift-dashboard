@@ -6,7 +6,7 @@ interface UseManagersResult {
     managers: Manager[];
     isLoading: boolean;
     error: string | null;
-    refetch: () => void;
+    refetch: () => Promise<void>;
 }
 
 /**

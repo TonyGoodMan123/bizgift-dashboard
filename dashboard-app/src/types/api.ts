@@ -97,3 +97,19 @@ export interface SalaryData {
     salary_without_margin: number;
     salary_total: number;
 }
+export interface Call {
+    id: string;
+    date: string;
+    manager_id: number;
+    manager_name: string;
+    duration: number; // seconds
+    phone: string;
+    result: string;
+    type: 'incoming' | 'outgoing' | 'external';
+}
+
+export interface CallsParams {
+    dateFrom: string;
+    dateTo: string;
+    managerId?: number | 'all';
+}
