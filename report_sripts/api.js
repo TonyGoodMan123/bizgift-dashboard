@@ -34,6 +34,9 @@ function doGet(e) {
       case 'sync-status':
         result = getSyncStatus();
         break;
+      case 'calls':
+        result = getCallsData(e.parameter);
+        break;
       default:
         return createJsonResponse({ success: false, error: 'Unknown action: ' + action });
     }
@@ -381,4 +384,62 @@ function getSalaryData(params) {
   }
   
   return { success: false, error: 'No data found for manager ' + managerId + ' in month ' + month };
+}
+
+/**
+ * action=calls
+ * Получает список звонков из листа Calls с фильтрацией
+ */
+function getCallsData(params) {
+  var sheet = getSheet(CFG.SHEETS.CALLS);
+  var data = sheet.getDataRange().getValues();
+  var header = data[0];
+  var idx = buildHeaderIndex(header);
+  
+  // Проверка обязательных колонок (из schema.js)
+  var required = ['call_id', 'portal_user_id', 'call_duration_sec', 'call_start', 'phone_number', 'call_status', 'call_type'];
+  var validationError = validateColumns('Calls', idx, required);
+  if (validationError) return validationError;
+
+  // Парсинг дат
+  var dateFrom = params.dateFrom ? new Date(params.dateFrom) : null;
+  var dateTo = null;
+  if (params.dateTo) {
+    dateTo = new Date(params.dateTo);
+    dateTo.setHours(23, 59, 59, 999);
+  }
+  var managerId = params.managerId && params.managerId !== 'all' ? Number(params.managerId) : null;
+  
+  // Получаем сопоставление ID -> Имя менеджера для отображения
+  var managers = getManagersData();
+  var managerMap = {};
+  managers.forEach(function(m) {
+    managerMap[m.manager_id] = m.manager_name;
+  });
+
+  var calls = [];
+  for (var r = 1; r < data.length; r++) {
+    var row = data[r];
+    var startAt = new Date(row[idx.call_start]);
+    
+    // Фильтры
+    if (dateFrom && startAt < dateFrom) continue;
+    if (dateTo && startAt > dateTo) continue;
+    
+    var mId = Number(row[idx.portal_user_id]);
+    if (managerId && mId !== managerId) continue;
+    
+    calls.push({
+      id: String(row[idx.call_id]),
+      date: startAt.toISOString(),
+      manager_id: mId,
+      manager_name: managerMap[mId] || 'ID: ' + mId,
+      duration: Number(row[idx.call_duration_sec] || 0),
+      phone: String(row[idx.phone_number] || ''),
+      result: String(row[idx.call_status] || ''),
+      // Конвертируем типы в формат фронтенда
+      type: String(row[idx.call_type] || '').toLowerCase().indexOf('входящий') !== -1 ? 'incoming' : 'outgoing'
+    });
+  }
+  return calls;
 }
