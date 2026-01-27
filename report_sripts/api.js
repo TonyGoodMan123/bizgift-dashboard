@@ -330,60 +330,62 @@ function normalizeMonth(value) {
  * Параметры: managerId, month (YYYY-MM)
  */
 function getSalaryData(params) {
-  var managerId = params.managerId ? Number(params.managerId) : null;
+  var managerId = params.managerId && params.managerId !== 'all' ? Number(params.managerId) : null;
   var month = params.month; // YYYY-MM
   
-  if (!managerId || !month) {
-    return { success: false, error: 'managerId and month are required' };
+  if (!month) {
+    return { success: false, error: 'month parameter is required' };
   }
   
   var sheet = getSheet(CFG.SHEETS.KPI_MONTHLY);
   var data = sheet.getDataRange().getValues();
   
   if (data.length <= 1) {
-    return { success: false, error: 'KPI_Monthly sheet is empty' };
+    return []; // Return empty array instead of error for UI stability
   }
   
   var header = data[0];
   var idx = buildHeaderIndex(header);
   
-  // FIX: Validate required columns
   var required = ['month', 'manager_id', 'manager_name', 'salary_total', 'flex_kpi_capped_total', 'margin_bonus_raw', 'fixed_base'];
   var validationError = validateColumns('KPI_Monthly', idx, required);
   if (validationError) return validationError;
   
-  // Normalize requested month to YYYY-MM
   var normalizedMonth = normalizeMonth(month);
+  var results = [];
   
-  // Найти строку для указанного менеджера и месяца
   for (var r = 1; r < data.length; r++) {
     var row = data[r];
     var rowManagerId = Number(row[idx.manager_id] || 0);
-    var rowMonth = normalizeMonth(row[idx.month]); // FIX: Normalize before comparison
+    var rowMonth = normalizeMonth(row[idx.month]);
     
-    if (rowManagerId === managerId && rowMonth === normalizedMonth) {
-      return {
-        manager_id: managerId,
-        manager_name: String(row[idx.manager_name] || ''),
-        month: month,
-        shifts_count: Number(row[idx.shifts_count] || 0),
-        calls_total: Number(row[idx.calls_total] || 0),
-        calls_30s_plus: Number(row[idx.calls_30s_plus] || 0),
-        kp_sent_count: Number(row[idx.kp_sent_count] || 0),
-        high_margin_deals_count: Number(row[idx.high_margin_deals_count] || 0),
-        margin_rub_total: Number(row[idx.margin_rub_total] || 0),
-        margin_bonus_raw: Number(row[idx.margin_bonus_raw] || 0),
-        flex_kpi_raw_total: Number(row[idx.flex_kpi_raw_total] || 0),
-        flex_kpi_capped_total: Number(row[idx.flex_kpi_capped_total] || 0),
-        fixed_base: Number(row[idx.fixed_base] || 0),
-        fixed_paid: Number(row[idx.fixed_paid] || 0),
-        salary_without_margin: Number(row[idx.salary_without_margin] || 0),
-        salary_total: Number(row[idx.salary_total] || 0)
-      };
-    }
+    // Filter by month
+    if (rowMonth !== normalizedMonth) continue;
+    
+    // Filter by manager (if specified)
+    if (managerId && rowManagerId !== managerId) continue;
+    
+    results.push({
+      manager_id: rowManagerId,
+      manager_name: String(row[idx.manager_name] || ''),
+      month: normalizedMonth,
+      shifts_count: Number(row[idx.shifts_count] || 0),
+      calls_total: Number(row[idx.calls_total] || 0),
+      calls_30s_plus: Number(row[idx.calls_30s_plus] || 0),
+      kp_sent_count: Number(row[idx.kp_sent_count] || 0),
+      high_margin_deals_count: Number(row[idx.high_margin_deals_count] || 0),
+      margin_rub_total: Number(row[idx.margin_rub_total] || 0),
+      margin_bonus_raw: Number(row[idx.margin_bonus_raw] || 0),
+      flex_kpi_raw_total: Number(row[idx.flex_kpi_raw_total] || 0),
+      flex_kpi_capped_total: Number(row[idx.flex_kpi_capped_total] || 0),
+      fixed_base: Number(row[idx.fixed_base] || 0),
+      fixed_paid: Number(row[idx.fixed_paid] || 0),
+      salary_without_margin: Number(row[idx.salary_without_margin] || 0),
+      salary_total: Number(row[idx.salary_total] || 0)
+    });
   }
   
-  return { success: false, error: 'No data found for manager ' + managerId + ' in month ' + month };
+  return results;
 }
 
 /**
