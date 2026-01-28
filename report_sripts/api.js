@@ -189,7 +189,84 @@ function getDealsData(params) {
       stage_durations: {}
     });
   }
+
+  // NEW: Calculate durations for these deals
+  var dealIds = deals.map(function(d) { return d.deal_id; });
+  var durations = getStageDurations(dealIds);
+  
+  deals.forEach(function(d) {
+    if (durations[d.deal_id]) {
+      d.stage_durations = durations[d.deal_id];
+    }
+  });
+
   return deals;
+}
+
+/**
+ * Calculates time spent in each stage for specified deals.
+ */
+function getStageDurations(dealIds) {
+  if (!dealIds || dealIds.length === 0) return {};
+  
+  var histSheet = getSheet(CFG.SHEETS.STAGE_HISTORY);
+  var data = histSheet.getDataRange().getValues();
+  if (data.length < 2) return {};
+  
+  var header = data[0];
+  var idx = buildStageHistoryIndex(header);
+  
+  // Collect transitions for specified deals
+  var dealMap = {}; // deal_id -> sorted array of {stage_id, change_date}
+  var dealIdsSet = {};
+  dealIds.forEach(function(id) { dealIdsSet[String(id)] = true; });
+
+  for (var r = 1; r < data.length; r++) {
+    var dealId = String(data[r][idx.deal_id]);
+    if (dealIdsSet[dealId]) {
+      if (!dealMap[dealId]) dealMap[dealId] = [];
+      dealMap[dealId].push({
+        stage_id: String(data[r][idx.new_stage_id]),
+        change_date: new Date(data[r][idx.change_date])
+      });
+    }
+  }
+
+  var stageConfig = getStageConfig();
+  var result = {}; // deal_id -> { stage_name -> days }
+
+  Object.keys(dealMap).forEach(function(id) {
+    var events = dealMap[id];
+    events.sort(function(a, b) { return a.change_date - b.change_date; });
+    
+    var durations = {};
+    for (var i = 0; i < events.length; i++) {
+        var current = events[i];
+        var next = events[i+1];
+        
+        var start = current.change_date;
+        var end = next ? next.change_date : new Date();
+        
+        var diffDays = (end - start) / (1000 * 60 * 60 * 24);
+        var sConf = stageConfig[current.stage_id];
+        var sName = sConf ? sConf.name : 'Unknown';
+        
+        if (!durations[sName]) durations[sName] = 0;
+        durations[sName] += diffDays;
+    }
+    result[id] = durations;
+  });
+
+  return result;
+}
+
+function buildStageHistoryIndex(header) {
+  var map = {};
+  for (var i = 0; i < header.length; i++) {
+    var h = String(header[i]).toLowerCase().trim();
+    map[h] = i;
+  }
+  return map;
 }
 
 /**

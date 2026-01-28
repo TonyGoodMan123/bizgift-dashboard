@@ -3,7 +3,7 @@ import {
     Users, DollarSign, Briefcase, TrendingUp, Filter,
     LayoutDashboard, PieChart as PieIcon, List, Shield,
     Menu, ArrowRight, ShoppingCart, ArrowDown,
-    Clock, XCircle, CheckCircle, Hourglass, Wallet, Info, Coins, LogOut, AlertCircle, InboxIcon, PhoneCall
+    Clock, XCircle, CheckCircle, Hourglass, Wallet, Info, Coins, LogOut, AlertCircle, InboxIcon, PhoneCall, Mail, History, Magnet
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.demo';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +36,7 @@ const SalesDashboard: React.FC = () => {
     const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState('overview');
+    const [activitySubTab, setActivitySubTab] = useState<'calls' | 'email' | 'history'>('calls');
     const [managerFilter, setManagerFilter] = useState<number | 'all'>('all');
 
     // Helper to get YYYY-MM-DD in local time
@@ -1007,108 +1008,147 @@ const SalesDashboard: React.FC = () => {
                     </div>
                 )}
 
-                {/* Header with filters */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Реестр звонков</h2>
-                        <p className="text-slate-500">Детализация активности по менеджерам</p>
-                    </div>
-                </div>
-
-                {/* Filters Section */}
-                <div className="flex flex-col xl:flex-row gap-4">
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col md:flex-row items-center gap-4">
-                        <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период отчета:</span>
-                        <div className="flex items-center gap-2 w-full md:w-auto">
-                            <input
-                                type="date"
-                                max={today}
-                                value={tempDateFrom}
-                                onChange={(e) => setTempDateFrom(e.target.value)}
-                                className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto"
-                            />
-                            <span className="text-slate-400">→</span>
-                            <input
-                                type="date"
-                                max={today}
-                                value={tempDateTo}
-                                onChange={(e) => setTempDateTo(e.target.value)}
-                                className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto"
-                            />
-                        </div>
+                {/* Sub-tabs Navigation */}
+                <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl w-fit">
+                    {[
+                        { id: 'calls', label: 'Звонки', icon: PhoneCall },
+                        { id: 'email', label: 'Реестр E-mail', icon: Mail },
+                        { id: 'history', label: 'История', icon: History }
+                    ].map((tab) => (
                         <button
-                            onClick={applyDateFilter}
-                            disabled={isCallsLoading || isMainLoading}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            key={tab.id}
+                            onClick={() => setActivitySubTab(tab.id as any)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activitySubTab === tab.id
+                                ? 'bg-white text-blue-600 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                                }`}
                         >
-                            {isCallsLoading || isMainLoading ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    Загрузка...
-                                </>
-                            ) : (
-                                'Применить'
-                            )}
+                            <tab.icon size={16} />
+                            {tab.label}
                         </button>
-                    </div>
+                    ))}
                 </div>
 
-                {/* Stats Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Card title="ВСЕГО ЗВОНКОВ" value={visibleCalls.length.toString()} icon={PhoneCall} />
-                    <Card title="ОБЩАЯ ДЛИТЕЛЬНОСТЬ" value={formatDuration(totalDuration)} icon={Clock} />
-                    <Card title="СРЕДНЯЯ ДЛИТЕЛЬНОСТЬ" value={formatDuration(Math.round(avgDuration))} icon={Hourglass} />
-                    <Card title="ЗВОНКОВ > 30 СЕК" value={visibleCalls.filter(c => Number(c.duration || 0) >= 30).length.toString()} icon={TrendingUp} />
-                </div>
+                {activitySubTab === 'calls' ? (
+                    <>
+                        {/* Filters Section */}
+                        <div className="flex flex-col xl:flex-row gap-4">
+                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col md:flex-row items-center gap-4">
+                                <span className="text-sm font-semibold text-slate-700 flex items-center gap-2 min-w-max"><Filter size={16} /> Период отчета:</span>
+                                <div className="flex items-center gap-2 w-full md:w-auto">
+                                    <input
+                                        type="date"
+                                        max={today}
+                                        value={tempDateFrom}
+                                        onChange={(e) => setTempDateFrom(e.target.value)}
+                                        className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto"
+                                    />
+                                    <span className="text-slate-400">→</span>
+                                    <input
+                                        type="date"
+                                        max={today}
+                                        value={tempDateTo}
+                                        onChange={(e) => setTempDateTo(e.target.value)}
+                                        className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto"
+                                    />
+                                </div>
+                                <button
+                                    onClick={applyDateFilter}
+                                    disabled={isCallsLoading || isMainLoading}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {isCallsLoading || isMainLoading ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Загрузка...
+                                        </>
+                                    ) : (
+                                        'Применить'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
 
-                {/* Table */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                                <tr>
-                                    <th className="p-4 font-medium">Дата и время</th>
-                                    <th className="p-4 font-medium">Менеджер</th>
-                                    <th className="p-4 font-medium">Направление</th>
-                                    <th className="p-4 font-medium">Длительность</th>
-                                    <th className="p-4 font-medium">Результат</th>
-                                    <th className="p-4 font-medium">Номер телефона</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {isCallsLoading ? (
-                                    <tr><td colSpan={6} className="p-12 text-center text-slate-400">Загрузка звонков...</td></tr>
-                                ) : visibleCalls.length === 0 ? (
-                                    <tr><td colSpan={6} className="p-12 text-center text-slate-400">Звонков не найдено</td></tr>
-                                ) : (
-                                    visibleCalls.map((call) => {
-                                        const manager = data?.managers.find(m => Number(m.manager_id) === Number(call.manager_id));
-                                        return (
-                                            <tr key={call.id} className="hover:bg-slate-50 transition-colors">
-                                                <td className="p-4 text-slate-500 text-sm whitespace-nowrap">{formatDateTime(call.date)}</td>
-                                                <td className="p-4 text-slate-600 flex items-center gap-2">
-                                                    <div className={`w-2 h-2 rounded-full ${manager?.avatar_color || 'bg-slate-400'}`} />
-                                                    {manager?.manager_name || call.manager_name}
-                                                </td>
-                                                <td className="p-4">
-                                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter ${call.type === 'incoming' ? 'bg-blue-100 text-blue-700' :
-                                                        call.type === 'outgoing' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-700'
-                                                        }`}>
-                                                        {call.type === 'incoming' ? 'Входящий' : call.type === 'outgoing' ? 'Исходящий' : 'Другой'}
-                                                    </span>
-                                                </td>
-                                                <td className={`p-4 font-mono font-medium ${Number(call.duration || 0) >= 30 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                                    {formatDuration(Number(call.duration || 0))}
-                                                </td>
-                                                <td className="p-4 text-sm text-slate-600">{call.result || '—'}</td>
-                                                <td className="p-4 text-sm text-slate-500 font-mono">{call.phone}</td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
+                        {/* Stats Summary */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <Card title="ВСЕГО ЗВОНКОВ" value={visibleCalls.length.toString()} icon={PhoneCall} />
+                            <Card title="ОБЩАЯ ДЛИТЕЛЬНОСТЬ" value={formatDuration(totalDuration)} icon={Clock} />
+                            <Card title="СРЕДНЯЯ ДЛИТЕЛЬНОСТЬ" value={formatDuration(Math.round(avgDuration))} icon={Hourglass} />
+                            <Card title="ЗВОНКОВ > 30 СЕК" value={visibleCalls.filter(c => Number(c.duration || 0) >= 30).length.toString()} icon={TrendingUp} />
+                        </div>
+
+                        {/* Table */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                        <tr>
+                                            <th className="p-4 font-medium">Дата и время</th>
+                                            <th className="p-4 font-medium">Менеджер</th>
+                                            <th className="p-4 font-medium">Направление</th>
+                                            <th className="p-4 font-medium">Длительность</th>
+                                            <th className="p-4 font-medium">Результат</th>
+                                            <th className="p-4 font-medium">Номер телефона</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {isCallsLoading ? (
+                                            <tr><td colSpan={6} className="p-12 text-center text-slate-400">Загрузка звонков...</td></tr>
+                                        ) : visibleCalls.length === 0 ? (
+                                            <tr><td colSpan={6} className="p-12 text-center text-slate-400">Звонков не найдено</td></tr>
+                                        ) : (
+                                            visibleCalls.map((call) => {
+                                                const manager = data?.managers.find(m => Number(m.manager_id) === Number(call.manager_id));
+                                                return (
+                                                    <tr key={call.id} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="p-4 text-slate-500 text-sm whitespace-nowrap">{formatDateTime(call.date)}</td>
+                                                        <td className="p-4 text-slate-600 flex items-center gap-2">
+                                                            <div className={`w-2 h-2 rounded-full ${manager?.avatar_color || 'bg-slate-400'}`} />
+                                                            {manager?.manager_name || call.manager_name}
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter ${call.type === 'incoming' ? 'bg-blue-100 text-blue-700' :
+                                                                call.type === 'outgoing' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-700'
+                                                                }`}>
+                                                                {call.type === 'incoming' ? 'Входящий' : call.type === 'outgoing' ? 'Исходящий' : 'Другой'}
+                                                            </span>
+                                                        </td>
+                                                        <td className={`p-4 font-mono font-medium ${Number(call.duration || 0) >= 30 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                            {formatDuration(Number(call.duration || 0))}
+                                                        </td>
+                                                        <td className="p-4 text-sm text-slate-600">{call.result || '—'}</td>
+                                                        <td className="p-4 text-sm text-slate-500 font-mono">{call.phone}</td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12">
+                        <EmptyState
+                            title={activitySubTab === 'email' ? 'Реестр E-mail пуст' : 'История активности пуста'}
+                            message="Данные для этого раздела еще не загружены из системы Bitrix24. Пожалуйста, обратитесь к администратору для настройки синхронизации."
+                            icon={activitySubTab === 'email' ? <Mail className="w-10 h-10 text-slate-400" /> : <History className="w-10 h-10 text-slate-400" />}
+                        />
                     </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderAttraction = () => {
+        return (
+            <div className="space-y-8 animate-in fade-in">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12">
+                    <EmptyState
+                        title="Раздел «Привлечение» пуст"
+                        message="Маркетинговые данные и статистика по лидам еще не интегрированы. Ведется разработка модуля синхронизации с рекламными кабинетами."
+                        icon={<Magnet className="w-10 h-10 text-slate-400" />}
+                    />
                 </div>
             </div>
         );
@@ -1116,6 +1156,7 @@ const SalesDashboard: React.FC = () => {
 
     const renderContent = () => {
         switch (activeTab) {
+            case 'attraction': return renderAttraction();
             case 'overview': return managerFilter !== 'all' ? renderManagerDetail() : renderOverview();
             case 'managers': return managerFilter !== 'all' ? renderManagerDetail() : renderManagersList();
             case 'deals': return renderDeals();
@@ -1135,6 +1176,7 @@ const SalesDashboard: React.FC = () => {
                 </div>
                 <div className="px-4 py-6 space-y-1 flex-1">
                     {[
+                        { id: 'attraction', label: 'Привлечение', icon: Magnet },
                         { id: 'overview', label: 'Продажи', icon: LayoutDashboard },
                         { id: 'managers', label: 'Менеджеры', icon: Users },
                         { id: 'deals', label: 'Сделки', icon: List },
@@ -1159,11 +1201,12 @@ const SalesDashboard: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-slate-100 rounded-lg active:bg-slate-200 transition-colors"><Menu size={20} className="text-slate-600" /></button>
                         <h2 className="text-xl font-bold text-slate-800 hidden md:block">
-                            {activeTab === 'overview' ? 'Отдел продаж: Сводка' :
-                                activeTab === 'managers' ? 'Эффективность команды' :
-                                    activeTab === 'deals' ? 'Реестр сделок' :
-                                        activeTab === 'activity' ? 'Реестр звонков' :
-                                            'Панель администратора'}
+                            {activeTab === 'attraction' ? 'Воронка "Привлечение"' :
+                                activeTab === 'overview' ? 'Воронка "Продажи"' :
+                                    activeTab === 'managers' ? 'Эффективность команды' :
+                                        activeTab === 'deals' ? 'Реестр сделок' :
+                                            activeTab === 'activity' ? 'Активность' :
+                                                'Панель администратора'}
                         </h2>
                         <h2 className="text-lg font-bold text-slate-800 md:hidden">BIZGIFT</h2>
                     </div>
